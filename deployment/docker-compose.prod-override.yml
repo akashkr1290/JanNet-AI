@@ -1,0 +1,111 @@
+# JanNet AI — Phase 22 production override for docker/docker-compose.yml.
+#
+# WHY THIS IS A SEPARATE OVERRIDE FILE, NOT AN EDIT TO
+# docker/docker-compose.yml: that file is Phase 18's own deliverable,
+# whose local-dev contract (`build:` from source, no `image:` key) is
+# still exactly right for a developer's local machine and for
+# .github/workflows/docker-build.yml's (Phase 21) build-from-source smoke
+# test. Phase 22's production host instead RUNS the already-built,
+# already-scanned, version-tagged images release-image-publish.yml
+# (Phase 21) publishes to GHCR — it must never rebuild from source on a
+# production host. Compose's own multi-file `-f a.yml -f b.yml` merge
+# feature (used by scripts/ec2-user-data.sh.tpl and scripts/deploy.sh)
+# is the standard way to express that difference without forking or
+# editing the base file. Also removes the `mysql` service entirely —
+# production uses the RDS instance provisioned by
+# aws/terraform/rds.tf, not a containerized database.
+#
+# BACKEND_IMAGE / AI_SERVICE_IMAGE / FRONTEND_IMAGE are exported as shell
+# environment variables by ec2-user-data.sh.tpl / deploy.sh before this file
+# is read — Compose interpolates ${VAR} the same way it already does for
+# ${DB_NAME} etc. from .env (Phase 18 convention, unchanged here).
+#
+# Audit fix Phase 07 (GAP-017 / GAP-018): invoked from the repository root as
+#
+#   docker compose --env-file .env \
+#     -f docker/docker-compose.yml -f deployment/docker-compose.prod-override.yml up -d
+#
+# (--env-file is required: with -f the project directory is docker/, so
+# Compose would otherwise not find the root .env for ${AWS_REGION},
+# ${LOG_GROUP_PREFIX}, ... and the awslogs driver would get empty values).
+# The previous scripts referenced ../docker-compose.prod-override.yml and
+# ../nginx/jannet.conf, which resolve OUTSIDE the cloned repository.
+#
+# Only nginx on the host is reachable from outside: backend, ai-service and
+# the web frontend are published on 127.0.0.1 only. Requires Docker Compose
+# v2.24.4+ for the !override tag (ec2-user-data installs v2.29.7).
+
+services:
+  mysql:
+    # Deleting a service via an override file isn't directly supported
+    # by Compose's merge semantics, so this profile-gates it off instead:
+    # a profile no `docker compose up -d` (no --profile flag) ever
+    # activates. Functionally equivalent to "not present" in production
+    # without needing Compose's newer, less-universally-available
+    # service-removal syntax.
+    profiles: ["never-used-in-production"]
+
+  ai-service:
+    image: ${AI_SERVICE_IMAGE}
+    build: !reset null
+    # Gap-backlog Patch 19/20 (Sep 2026 strict recheck): ship container logs to
+    # CloudWatch Logs (groups pre-created by app_monitoring.tf; the EC2 instance
+    # role grants PutLogEvents). The metric filters/alarms there read these.
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: ${LOG_GROUP_PREFIX}/ai-service
+        awslogs-create-group: "false"
+
+  backend:
+    image: ${BACKEND_IMAGE}
+    build: !reset null
+    # Audit GAP-017: host-local only - nginx (deployment/nginx/jannet.conf) is
+    # the public entry point for /api/v1/.
+    ports: !override
+      - "127.0.0.1:8080:8080"
+    # Gap-backlog Patch 19/20 (Sep 2026 strict recheck): ship container logs to
+    # CloudWatch Logs (groups pre-created by app_monitoring.tf; the EC2 instance
+    # role grants PutLogEvents). The metric filters/alarms there read these.
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: ${LOG_GROUP_PREFIX}/backend
+        awslogs-create-group: "false"
+    # !override (not !reset): !reset discards the mapping below and left the
+    # service with no dependency at all (checked with `docker compose config`).
+    depends_on: !override
+      ai-service:
+        condition: service_started
+    # RDS is a managed, always-on service outside Docker's own
+    # health-check visibility — the `mysql: condition: service_healthy`
+    # dependency Phase 18 wrote only makes sense against the
+    # docker-compose-managed local mysql container. Removed here rather
+    # than left dangling against a service this file just profile-gated
+    # off, which would otherwise leave `backend` permanently unable to
+    # start (Compose refuses to start a container whose depends_on
+    # target is never started in a run that doesn't request that
+    # profile).
+
+  # Audit GAP-017 (SRS 11.1/11.2: the initial release is a responsive web
+  # app): the web frontend runs from the published GHCR image built by
+  # release-image-publish.yml with the production API URL compiled in - it is
+  # never built on the production host. nginx proxies / to it.
+  flutter-frontend:
+    image: ${FRONTEND_IMAGE}
+    build: !reset null
+    ports: !override
+      - "127.0.0.1:3000:80"
+    # !override (not !reset): !reset discards the mapping below and left the
+    # service with no dependency at all (checked with `docker compose config`).
+    depends_on: !override
+      backend:
+        condition: service_started
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: ${LOG_GROUP_PREFIX}/frontend
+        awslogs-create-group: "false"
