@@ -1,0 +1,169 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/widgets/error_text.dart';
+import '../../../core/theme/jan_tokens.dart';
+import '../../../core/widgets/jan_surfaces.dart';
+import '../widgets/auth_layout.dart';
+import '../../../core/api/api_exception.dart';
+import '../../home_router.dart';
+import '../auth_api.dart';
+import 'forgot_password_screen.dart';
+import 'mfa_verification_screen.dart';
+import 'register_screen.dart';
+
+/// SRS Screen 16.1 "Registration / Login" (login half) + SRS 27.1 MFA
+/// routing. One shared form for every role, matching AuthController's own
+/// single `/auth/login` endpoint for all five roles.
+///
+/// Phase 6 shipped this as deliberately minimal (mobile/email + password
+/// only, no Register/Forgot-Password links, and an outright StateError if
+/// the backend responded with `mfaRequired` - i.e. Admin/Super Admin
+/// could not sign in through the app at all). Phase 17 closes that: this
+/// screen now links to RegisterScreen and ForgotPasswordScreen (both new
+/// this phase) and routes an `mfaRequired` response to
+/// MfaVerificationScreen (also new this phase) instead of throwing.
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _identifierController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _loading = false;
+  bool _obscurePassword = true;
+  String? _error;
+
+  Future<void> _submit() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await AuthApi.instance.login(
+        identifier: _identifierController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+
+      if (result.mfaRequired) {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => MfaVerificationScreen(mfaToken: result.mfaToken!)),
+        );
+        return;
+      }
+
+      final home = await resolveHomeScreen();
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => home),
+      );
+    } on ApiException catch (e) {
+      setState(() => _error = e.message);
+    } catch (e) {
+      setState(() => _error = 'Login failed: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _identifierController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // UI redesign: reference "Welcome back" login. Logic above is unchanged.
+  @override
+  Widget build(BuildContext context) {
+    return JanAuthLayout(
+      child: AutofillGroup(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const JanAuthHeader(
+              title: 'Welcome back',
+              subtitle: 'Sign in to report and track civic issues.',
+              illustration: true,
+            ),
+            const JanFieldLabel('Mobile / Email'),
+            TextField(
+              controller: _identifierController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.username],
+              decoration: const InputDecoration(
+                hintText: 'Mobile number or email',
+                prefixIcon: Icon(Icons.person_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: JanSpace.md),
+            const JanFieldLabel('Password'),
+            TextField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.password],
+              onSubmitted: (_) {
+                if (!_loading) _submit();
+              },
+              decoration: InputDecoration(
+                hintText: 'Enter your password',
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                  icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                ),
+                child: const Text('Forgot Password?'),
+              ),
+            ),
+            if (_error != null) ...[
+              ErrorText(_error!),
+              const SizedBox(height: JanSpace.md),
+            ],
+            FilledButton(
+              onPressed: _loading ? null : _submit,
+              child: _loading ? const JanButtonSpinner() : const Text('Sign In'),
+            ),
+            const SizedBox(height: JanSpace.sm),
+            TextButton(
+              onPressed: _loading
+                  ? null
+                  : () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                      ),
+              child: const Text.rich(
+                TextSpan(
+                  text: "Don't have an account? ",
+                  style: TextStyle(color: JanColors.slate, fontWeight: FontWeight.w500),
+                  children: [
+                    TextSpan(
+                      text: 'Register',
+                      style: TextStyle(
+                        color: JanColors.primary,
+                        fontWeight: FontWeight.w800,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
