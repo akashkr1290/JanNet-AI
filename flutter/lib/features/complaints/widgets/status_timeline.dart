@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/jan_tokens.dart';
@@ -6,6 +6,7 @@ import '../../../core/widgets/jan_surfaces.dart';
 import '../models/complaint.dart';
 import '../models/complaint_status.dart';
 import 'status_badge.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Connected vertical timeline built from a complaint's real status history
 /// (oldest first); the latest entry is highlighted as the current step.
@@ -45,7 +46,7 @@ class StatusTimeline extends StatelessWidget {
       if (entry.actorName != null) 'by ${entry.actorName}' else entry.actorType,
     ].join(' · ');
     return Semantics(
-      label: '$label${current ? ', current status' : ''}. $meta${entry.reason != null && entry.reason!.isNotEmpty ? '. ${entry.reason}' : ''}',
+      label: trs('$label${current ? ', current status' : ''}. $meta${entry.reason != null && entry.reason!.isNotEmpty ? '. ${entry.reason}' : ''}'),
       excludeSemantics: true,
       child: IntrinsicHeight(
         child: Row(

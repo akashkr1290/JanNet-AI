@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../theme/jan_tokens.dart';
+import '../l10n/tr_text.dart';
 
 /// Remaining-gaps item 14 (accessibility): form/screen error messages are a
 /// live region (announced when they appear or change). UI redesign: shown as
@@ -15,7 +16,7 @@ class ErrorText extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       container: true,
-      label: 'Error: $message',
+      label: trs('Error: $message'),
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

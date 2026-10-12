@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../api/api_exception.dart';
 import '../theme/jan_tokens.dart';
 import 'jan_illustrations.dart';
 import 'jan_logo.dart';
+import 'jan_motion.dart';
+import '../l10n/tr_text.dart';
 
 /// Shared loading / skeleton / empty / error / success states, following
 /// the reference state catalogue. All views are scrollable when [scrollable]
@@ -42,7 +44,7 @@ class JanLoadingView extends StatelessWidget {
     return Center(
       child: Semantics(
         liveRegion: true,
-        label: message,
+        label: trs(message),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -83,7 +85,7 @@ class JanSkeletonList extends StatelessWidget {
           decoration: BoxDecoration(color: JanColors.skeleton, borderRadius: BorderRadius.circular(6)),
         );
     return Semantics(
-      label: semanticLabel,
+      label: trs(semanticLabel),
       liveRegion: true,
       child: ExcludeSemantics(
         child: ListView.separated(
@@ -324,12 +326,7 @@ Future<void> showJanSuccessDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(color: JanColors.teal, shape: BoxShape.circle),
-                child: const Icon(Icons.check_rounded, color: JanColors.white, size: 38),
-              ),
+              const JanSuccessMark(),
               const SizedBox(height: JanSpace.md),
               Semantics(
                 header: true,

@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/theme/jan_tokens.dart';
 import '../models/complaint_status.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Visual treatment for each complaint status, following the reference
 /// badge set (Submitted = amber, In Progress = blue, Resolved = teal,
@@ -52,13 +53,13 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final v = StatusVisual.of(status);
     return Semantics(
-      label: 'Status: ${status.label}',
+      label: trs('Status: ${status.label}'),
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: v.background,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(color: v.color.withValues(alpha: 0.35)),
         ),
         child: Row(

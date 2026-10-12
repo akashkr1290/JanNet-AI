@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../theme/jan_tokens.dart';
+import '../l10n/tr_text.dart';
 
 /// JanNet AI brand mark: a navy "J" whose stem connects into a small network
 /// of civic nodes (the reference logo's motif), drawn as vectors so it is
@@ -86,7 +87,7 @@ class JanLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final nameColor = onDark ? JanColors.white : JanColors.navy;
     return Semantics(
-      label: 'JanNet AI',
+      label: trs('JanNet AI'),
       excludeSemantics: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -95,7 +96,7 @@ class JanLogo extends StatelessWidget {
             JanLogoMark(size: markSize, onDark: onDark),
             const SizedBox(width: 8),
           ],
-          Text.rich(
+          TextRich(
             TextSpan(
               children: [
                 TextSpan(text: 'JanNet ', style: TextStyle(color: nameColor)),

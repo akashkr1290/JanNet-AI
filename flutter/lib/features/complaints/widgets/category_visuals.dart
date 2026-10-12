@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/jan_tokens.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Icon, colours and human label for each backend ComplaintCategory
 /// (POTHOLE, GARBAGE_OVERFLOW, WATER_LEAKAGE, BROKEN_STREET_LIGHT,
@@ -58,7 +59,7 @@ class CategoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final v = CategoryVisual.of(category);
     return Semantics(
-      label: 'Category: ${v.label}',
+      label: trs('Category: ${v.label}'),
       excludeSemantics: true,
       child: Container(
         width: size,

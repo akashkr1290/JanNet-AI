@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/jan_tokens.dart';
 import '../models/complaint.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 42 (Sep 2026 strict recheck): draws the AI's detection
 /// boxes over the photo it classified. Box coordinates arrive normalised to
@@ -45,13 +46,13 @@ class _DetectionOverlayImageState extends State<DetectionOverlayImage> {
     final size = _size;
     if (size == null || size.height == 0) {
       return Image.network(widget.url,
-          semanticLabel: 'Complaint photo',
+          semanticLabel: trs('Complaint photo'),
           errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 48, color: JanColors.muted));
     }
     return Semantics(
-      label: widget.boxes.isEmpty
+      label: trs(widget.boxes.isEmpty
           ? 'Complaint photo'
-          : 'Complaint photo with AI detections: ${widget.boxes.map((b) => b.className).join(', ')}',
+          : 'Complaint photo with AI detections: ${widget.boxes.map((b) => b.className).join(', ')}'),
       child: AspectRatio(
         aspectRatio: size.width / size.height,
         child: Stack(fit: StackFit.expand, children: [

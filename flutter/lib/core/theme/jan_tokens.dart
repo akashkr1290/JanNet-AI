@@ -18,11 +18,14 @@ class JanColors {
   JanColors._();
 
   // Brand
-  static const Color sky = Color(0xFF5C9FD8); // reference primary (decorative)
-  static const Color primary = Color(0xFF2C6FAE); // accessible primary: buttons, links (5.26:1 on white)
-  static const Color primaryLight = Color(0xFFDCEAF8);
-  static const Color navy = Color(0xFF203A5F);
-  static const Color navyDeep = Color(0xFF172C4A);
+  // UI phase 1 (Gen-Z civic-tech refresh): electric blue accent, deeper navy.
+  // #2563EB measures 5.17:1 on white, so it stays AA for buttons and links.
+  static const Color sky = Color(0xFF4F8CFF); // decorative highlight
+  static const Color primary = Color(0xFF2563EB); // electric blue: buttons, links (5.17:1 on white)
+  static const Color primaryLight = Color(0xFFE3EBFD);
+  static const Color navy = Color(0xFF14284B);
+  static const Color navyDeep = Color(0xFF0B1A36);
+  static const Color electricGlow = Color(0xFF7AA7FF); // glows and highlights only, never text
   static const Color tealBrand = Color(0xFF38A9A2); // reference accent (decorative)
   static const Color teal = Color(0xFF1F7F79); // accessible teal surface (4.81:1 with white)
   static const Color tealLight = Color(0xFFE2F4F2);
@@ -50,7 +53,7 @@ class JanColors {
   static const Color error = Color(0xFFB3261E);
   static const Color errorLight = Color(0xFFFBE9E7);
   static const Color info = primary;
-  static const Color infoLight = Color(0xFFE6F0FA);
+  static const Color infoLight = Color(0xFFE8EFFD);
 }
 
 /// 4-point spacing scale.
@@ -94,7 +97,13 @@ class JanShadows {
 
   /// Coloured glow under primary call-to-action buttons.
   static const List<BoxShadow> primaryGlow = [
-    BoxShadow(color: Color(0x402C6FAE), blurRadius: 16, offset: Offset(0, 6)),
+    BoxShadow(color: Color(0x402563EB), blurRadius: 16, offset: Offset(0, 6)),
+  ];
+
+  /// Lifted card on hover / selection (landing cards).
+  static const List<BoxShadow> lifted = [
+    BoxShadow(color: Color(0x2E2563EB), blurRadius: 30, offset: Offset(0, 14)),
+    BoxShadow(color: Color(0x1414284B), blurRadius: 4, offset: Offset(0, 1)),
   ];
 }
 
@@ -116,4 +125,28 @@ class JanBreakpoints {
 
   static bool isExpanded(BuildContext context) => MediaQuery.sizeOf(context).width >= expanded;
   static bool isAtLeastMedium(BuildContext context) => MediaQuery.sizeOf(context).width >= medium;
+}
+
+/// Gradients are used sparingly: the selected highlight, the primary hero
+/// button and a soft wash behind the landing hero. Never behind body text.
+class JanGradients {
+  JanGradients._();
+
+  static const LinearGradient electric = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF2563EB), Color(0xFF4F8CFF)],
+  );
+
+  static const LinearGradient navy = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [JanColors.navyDeep, JanColors.navy],
+  );
+
+  static const LinearGradient heroWash = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFE6EEFF), Color(0xFFF4F8FF), JanColors.white],
+  );
 }

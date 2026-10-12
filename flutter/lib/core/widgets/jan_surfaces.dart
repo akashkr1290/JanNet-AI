@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../theme/jan_tokens.dart';
 import 'jan_illustrations.dart';
+import '../l10n/tr_text.dart';
 
 /// The JanNet AI page background: a soft blue gradient with faint geometric
 /// facets and an outline skyline along the bottom - the treatment used on
@@ -114,7 +115,7 @@ class JanCard extends StatelessWidget {
     if (onTap != null) {
       content = Semantics(
         button: true,
-        label: semanticLabel,
+        label: trsN(semanticLabel),
         child: InkWell(onTap: onTap, borderRadius: borderRadius, child: content),
       );
     }

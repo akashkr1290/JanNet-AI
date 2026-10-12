@@ -47,10 +47,10 @@ void main() {
     expect(resolvedText.style?.color, isNot(equals(rejectedText.style?.color)));
   });
 
-  testWidgets('badge has rounded-pill styling (BorderRadius.circular)', (tester) async {
+  testWidgets('badge has rounded-rectangle styling (BorderRadius.circular)', (tester) async {
     await tester.pumpWidget(wrap(StatusBadge(status: ComplaintStatus.submitted)));
     final container = tester.widget<Container>(find.byType(Container));
     final decoration = container.decoration as BoxDecoration;
-    expect(decoration.borderRadius, BorderRadius.circular(12));
+    expect(decoration.borderRadius, BorderRadius.circular(6));
   });
 }
