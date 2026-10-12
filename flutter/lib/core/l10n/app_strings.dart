@@ -1,5 +1,8 @@
 import 'package:flutter/widgets.dart';
 
+import 'languages.dart';
+import 'translator.dart';
+
 /// Gap-backlog Patch 34 (Sep 2026 audit): "for a public Indian civic
 /// application, support at least English and Hindi."
 ///
@@ -29,8 +32,8 @@ import 'package:flutter/widgets.dart';
 class AppStrings {
   AppStrings._();
 
-  /// 'EN' or 'HI' - mirrors PersonalSettings.language's own values
-  /// exactly, so no translation layer is needed between the two.
+  /// 'EN', 'HI', 'MR', 'BN', 'TA', 'TE' or 'KN' - mirrors
+  /// PersonalSettings.language's own values exactly.
   static final ValueNotifier<String> currentLanguage = ValueNotifier<String>('EN');
 
   static const Map<String, Map<String, String>> _strings = {
@@ -78,6 +81,28 @@ class AppStrings {
       'dash_none_yet': 'You have not submitted any complaints yet.',
       'action_confirm_resolution': 'Yes - Confirm Resolution',
       'action_reopen_not_resolved': 'Issue Not Resolved - Reopen',
+      // V34 location flow (location/area_confirm_card.dart, manual_area_panel.dart, picker)
+      'loc_is_this_place': 'Is this the place of the problem?',
+      'loc_yes': 'Yes, correct',
+      'loc_no': 'No, change it',
+      'loc_choose_village': 'Choose the village or town',
+      'loc_choose_ward': 'Choose the ward',
+      'loc_ward_unknown': "Don't know the ward",
+      'loc_at_place_now': 'Are you at the place of the problem right now?',
+      'loc_enter_pin': 'Enter the PIN code of that place',
+      'loc_move_pin': 'Move the map so the red pin is exactly on the problem',
+      'loc_confirm': 'Confirm location',
+      'loc_search_hint': 'Search a place, landmark or road',
+      'loc_search_area_hint': 'Type the area, colony or landmark (e.g. Republic Crossing, Ghaziabad)',
+      'loc_know_pin': 'I know the PIN code',
+      'loc_not_served': 'This place is outside the area served by JanNet. You can still report it - an officer will review it.',
+      'loc_search_village': 'Search the village name',
+      'loc_no_photo_location': 'This photo has no location saved in it.',
+      'loc_camera_tip': "Tip: turn on 'Location tag' in your phone's camera settings, or take the photo with this app's camera.",
+      'loc_finding_address': 'Finding the address...',
+      'loc_where_problem': 'Where is the problem?',
+      'common_yes': 'Yes',
+      'common_no': 'No',
     },
     'HI': {
       'app_title': 'जनNet AI',
@@ -122,12 +147,48 @@ class AppStrings {
       'dash_none_yet': 'आपने अभी तक कोई शिकायत दर्ज नहीं की है।',
       'action_confirm_resolution': 'हाँ - समाधान की पुष्टि करें',
       'action_reopen_not_resolved': 'समस्या हल नहीं हुई - फिर से खोलें',
+      // V34 location flow
+      'loc_is_this_place': 'क्या समस्या की जगह यही है?',
+      'loc_yes': 'हाँ, सही है',
+      'loc_no': 'नहीं, बदलें',
+      'loc_choose_village': 'गाँव या शहर चुनें',
+      'loc_choose_ward': 'वार्ड चुनें',
+      'loc_ward_unknown': 'वार्ड नहीं पता',
+      'loc_at_place_now': 'क्या आप अभी उसी जगह पर हैं जहाँ समस्या है?',
+      'loc_enter_pin': 'उस जगह का पिन कोड डालें',
+      'loc_move_pin': 'नक्शा खिसकाकर लाल पिन को ठीक समस्या की जगह पर रखें',
+      'loc_confirm': 'जगह पक्की करें',
+      'loc_search_hint': 'जगह, लैंडमार्क या सड़क खोजें',
+      'loc_search_area_hint': 'इलाका, कॉलोनी या लैंडमार्क लिखें (जैसे रिपब्लिक क्रॉसिंग, गाजियाबाद)',
+      'loc_know_pin': 'मुझे पिन कोड पता है',
+      'loc_not_served': 'यह जगह JanNet के क्षेत्र से बाहर है। आप फिर भी शिकायत कर सकते हैं - अधिकारी जाँच करेंगे।',
+      'loc_search_village': 'गाँव का नाम खोजें',
+      'loc_no_photo_location': 'इस फोटो में जगह की जानकारी नहीं है।',
+      'loc_camera_tip': "सुझाव: फ़ोन के कैमरा की सेटिंग में 'Location tag' चालू करें, या इस ऐप के कैमरे से फोटो लें।",
+      'loc_finding_address': 'पता खोजा जा रहा है...',
+      'loc_where_problem': 'समस्या कहाँ है?',
+      'common_yes': 'हाँ',
+      'common_no': 'नहीं',
     },
   };
 
   /// Falls back to the English string, then to the raw key itself, so a
   /// key missing from one language map never renders as literally blank.
   static String of(String key) {
-    return _strings[currentLanguage.value]?[key] ?? _strings['EN']![key] ?? key;
+    final lang = JanLanguage.normalise(currentLanguage.value);
+    final own = _strings[lang]?[key];
+    if (own != null) return own;
+    final english = _strings['EN']![key] ?? key;
+    // Marathi, Bengali, Tamil, Telugu and Kannada: the English sentence is looked up in the translation tables.
+    return lang == 'EN' ? english : Translator.translateTo(english, lang);
+  }
+
+  /// The same text in the OTHER language (Hindi when the app is in English and
+  /// vice versa), or null when it has no translation. Used by BiText so the
+  /// key location questions are readable by everyone.
+  static String? other(String key) {
+    final other = currentLanguage.value == 'HI' ? 'EN' : 'HI';
+    final text = _strings[other]?[key];
+    return text == null || text == of(key) ? null : text;
   }
 }
