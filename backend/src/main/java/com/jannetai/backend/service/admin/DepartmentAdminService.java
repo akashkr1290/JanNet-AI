@@ -13,6 +13,7 @@ import com.jannetai.backend.repository.UserRepository;
 import com.jannetai.backend.service.AuditJson;
 import com.jannetai.backend.service.AuditService;
 import lombok.RequiredArgsConstructor;
+import com.jannetai.backend.service.geo.GeoRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,7 @@ public class DepartmentAdminService {
     private final UserRepository userRepository;
     private final RoutingRuleRepository routingRuleRepository;
     private final AuditService auditService;
+    private final GeoRepository geoRepository; // V34: area of a department
 
     @Value("${app.department-assignment.fallback-department-name}")
     private String fallbackDepartmentName;
@@ -62,14 +64,18 @@ public class DepartmentAdminService {
             throw new IllegalArgumentException("Create the department first, then assign a head who belongs to it");
         }
         String name = request.name().trim();
-        requireUniqueName(name, null);
+        Integer[] area = area(request);
+        requireUniqueName(name, area, null);
         Department department = departmentRepository.save(Department.builder()
                 .name(name)
                 .description(blankToNull(request.description()))
+                .districtCode(area[0])
+                .localBodyCode(area[1])
                 .isActive(true)
                 .build());
         auditService.record(admin, "DEPARTMENT_CREATED", "DEPARTMENT", department.getDepartmentId(),
-                AuditJson.of("name", name, "description", department.getDescription()));
+                AuditJson.of("name", name, "description", department.getDescription(),
+                        "district_code", area[0], "local_body_code", area[1]));
         return DepartmentResponse.from(department);
     }
 
@@ -81,7 +87,11 @@ public class DepartmentAdminService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "'" + department.getName()
                     + "' is the configured fallback department for unmapped categories and cannot be renamed");
         }
-        requireUniqueName(name, departmentId);
+        Integer[] area = area(request);
+        if (isFallback(department) && (area[0] != null || area[1] != null)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "The fallback department serves every area");
+        }
+        requireUniqueName(name, area, departmentId);
         User head = request.headUserId() == null ? null : requireEligibleHead(request.headUserId(), departmentId);
 
         String previousName = department.getName();
@@ -90,9 +100,15 @@ public class DepartmentAdminService {
         department.setName(name);
         department.setDescription(blankToNull(request.description()));
         department.setHeadUser(head);
+        Integer previousDistrict = department.getDistrictCode();
+        Integer previousBody = department.getLocalBodyCode();
+        department.setDistrictCode(area[0]);
+        department.setLocalBodyCode(area[1]);
         department = departmentRepository.save(department);
         auditService.record(admin, "DEPARTMENT_UPDATED", "DEPARTMENT", departmentId, AuditJson.of(
                 "name", name, "previous_name", previousName,
+                "district_code", area[0], "previous_district_code", previousDistrict,
+                "local_body_code", area[1], "previous_local_body_code", previousBody,
                 "description", department.getDescription(), "previous_description", previousDescription,
                 "head_user_id", head != null ? head.getUserId() : null, "previous_head_user_id", previousHead));
         return DepartmentResponse.from(department);
@@ -136,14 +152,38 @@ public class DepartmentAdminService {
         return user;
     }
 
-    private void requireUniqueName(String name, Long selfId) {
-        departmentRepository.findFirstByName(name).filter(d -> !d.getDepartmentId().equals(selfId)).ifPresent(d -> {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "A department named '" + d.getName() + "' already exists");
-        });
+    /** Same name allowed once per area (V34 uq_departments_name_scope). */
+    private void requireUniqueName(String name, Integer[] area, Long selfId) {
+        departmentRepository.findFirstByNameAndDistrictCodeAndLocalBodyCode(name, area[0], area[1])
+                .filter(d -> !d.getDepartmentId().equals(selfId)).ifPresent(d -> {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "A department named '" + d.getName() + "' already exists for this area");
+                });
+    }
+
+    /**
+     * {district, body} codes from the request, checked against the LGD tables.
+     * A body brings its own district; a district that disagrees with the body is a 400.
+     */
+    private Integer[] area(DepartmentUpsertRequest request) {
+        Integer body = request.localBodyCode();
+        Integer district = request.districtCode();
+        if (body != null) {
+            var ref = geoRepository.localBody(body)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown local body " + body));
+            if (district != null && !district.equals(ref.districtCode())) {
+                throw new IllegalArgumentException(ref.name() + " is not in district " + district);
+            }
+            district = ref.districtCode();
+        } else if (district != null && geoRepository.district(district).isEmpty()) {
+            throw new IllegalArgumentException("Unknown district " + district);
+        }
+        return new Integer[]{district, body};
     }
 
     private boolean isFallback(Department department) {
-        return fallbackDepartmentName != null && fallbackDepartmentName.equals(department.getName());
+        return fallbackDepartmentName != null && fallbackDepartmentName.equals(department.getName())
+                && department.getDistrictCode() == null && department.getLocalBodyCode() == null;
     }
 
     private Department requireDepartment(Long departmentId) {

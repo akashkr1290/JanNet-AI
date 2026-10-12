@@ -25,7 +25,12 @@ public record UserProfileResponse(
         Long wardId,
         Long departmentId,
         String departmentName,
-        String wardName
+        String wardName,
+        // V34 staff jurisdiction (null for citizens / admins); names only from withNames
+        Integer districtCode,
+        Integer localBodyCode,
+        String districtName,
+        String localBodyName
 ) {
     public static UserProfileResponse from(User user) {
         return new UserProfileResponse(
@@ -39,6 +44,10 @@ public record UserProfileResponse(
                 user.getWard() != null ? user.getWard().getWardId() : null,
                 user.getDepartment() != null ? user.getDepartment().getDepartmentId() : null,
                 null,
+                null,
+                user.getDistrictCode(),
+                user.getLocalBodyCode(),
+                null,
                 null
         );
     }
@@ -50,6 +59,9 @@ public record UserProfileResponse(
                 base.userId(), base.fullName(), base.mobileNumber(), base.email(), base.role(), base.status(),
                 base.reputationScore(), base.wardId(), base.departmentId(),
                 user.getDepartment() != null ? user.getDepartment().getName() : null,
-                user.getWard() != null ? user.getWard().getName() : null);
+                user.getWard() != null ? user.getWard().getName() : null,
+                base.districtCode(), base.localBodyCode(),
+                user.getDistrict() != null ? user.getDistrict().getName() : null,
+                user.getLocalBody() != null ? user.getLocalBody().getName() : null);
     }
 }

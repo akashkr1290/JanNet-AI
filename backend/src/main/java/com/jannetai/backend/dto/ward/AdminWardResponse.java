@@ -13,11 +13,19 @@ public record AdminWardResponse(
         boolean hasBoundary,
         Boolean isActive,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        // V34
+        Integer localBodyCode,
+        Integer lgdWardCode,
+        String wardNumber,
+        java.math.BigDecimal centreLatitude,
+        java.math.BigDecimal centreLongitude
 ) {
     public static AdminWardResponse from(Ward ward) {
         String boundary = ward.getBoundaryGeojson();
         return new AdminWardResponse(ward.getWardId(), ward.getName(), ward.getCode(), boundary,
-                boundary != null && !boundary.isBlank(), ward.getIsActive(), ward.getCreatedAt(), ward.getUpdatedAt());
+                boundary != null && !boundary.isBlank(), ward.getIsActive(), ward.getCreatedAt(), ward.getUpdatedAt(),
+                ward.getLocalBodyCode(), ward.getLgdWardCode(), ward.getWardNumber(),
+                ward.getCentreLatitude(), ward.getCentreLongitude());
     }
 }

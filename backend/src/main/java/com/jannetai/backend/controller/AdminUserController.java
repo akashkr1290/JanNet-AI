@@ -71,6 +71,15 @@ public class AdminUserController {
         return adminUserService.updateRole(principal.getUser(), id, request.role());
     }
 
+    /** V34: staff transfer - new district / local body / ward (Admin location picker). */
+    @PatchMapping("/{id}/area")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public UserProfileResponse updateArea(@AuthenticationPrincipal UserPrincipal principal,
+                                          @PathVariable Long id,
+                                          @RequestBody com.jannetai.backend.dto.admin.AdminUpdateAreaRequest request) {
+        return adminUserService.updateArea(principal.getUser(), id, request);
+    }
+
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public UserProfileResponse updateStatus(@AuthenticationPrincipal UserPrincipal principal,

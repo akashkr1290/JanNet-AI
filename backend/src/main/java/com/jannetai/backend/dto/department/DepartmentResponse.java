@@ -7,7 +7,12 @@ public record DepartmentResponse(
         String name,
         String description,
         Long headUserId,
-        Boolean isActive
+        Boolean isActive,
+        // V34 area served (null = every area)
+        Integer districtCode,
+        String districtName,
+        Integer localBodyCode,
+        String localBodyName
 ) {
     public static DepartmentResponse from(Department d) {
         return new DepartmentResponse(
@@ -15,7 +20,11 @@ public record DepartmentResponse(
                 d.getName(),
                 d.getDescription(),
                 d.getHeadUser() != null ? d.getHeadUser().getUserId() : null,
-                d.getIsActive()
+                d.getIsActive(),
+                d.getDistrictCode(),
+                d.getDistrict() != null ? d.getDistrict().getName() : null,
+                d.getLocalBodyCode(),
+                d.getLocalBody() != null ? d.getLocalBody().getName() : null
         );
     }
 }

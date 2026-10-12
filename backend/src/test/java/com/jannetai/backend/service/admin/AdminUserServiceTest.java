@@ -68,7 +68,8 @@ class AdminUserServiceTest {
     @BeforeEach
     void setUp() {
         service = new AdminUserService(userRepository, departmentRepository, wardRepository,
-                passwordEncoder, auditService, authService, emailGatewayClient);
+                passwordEncoder, auditService, authService, emailGatewayClient,
+                org.mockito.Mockito.mock(com.jannetai.backend.service.geo.GeoRepository.class)); // V34: no area in these tests
         lenient().when(passwordEncoder.encode(anyString())).thenAnswer(inv -> "HASH(" + inv.getArgument(0) + ")");
         lenient().when(userRepository.save(any(User.class))).thenAnswer(inv -> {
             User u = inv.getArgument(0);

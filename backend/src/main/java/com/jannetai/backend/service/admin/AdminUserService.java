@@ -13,7 +13,9 @@ import com.jannetai.backend.exception.ResourceNotFoundException;
 import com.jannetai.backend.repository.DepartmentRepository;
 import com.jannetai.backend.repository.UserRepository;
 import com.jannetai.backend.repository.WardRepository;
+import com.jannetai.backend.service.AuditJson;
 import com.jannetai.backend.service.AuditService;
+import com.jannetai.backend.service.geo.GeoRepository;
 import com.jannetai.backend.service.AuthService;
 import com.jannetai.backend.service.notification.DeliveryOutcome;
 import com.jannetai.backend.service.notification.EmailGatewayClient;
@@ -85,6 +87,7 @@ public class AdminUserService {
     private final AuditService auditService;
     private final AuthService authService;
     private final EmailGatewayClient emailGatewayClient;
+    private final GeoRepository geoRepository; // V34: staff area checks
 
     @Transactional(readOnly = true)
     public Page<UserProfileResponse> list(Role role, UserStatus status, Long departmentId, String search,
@@ -119,6 +122,7 @@ public class AdminUserService {
             ward = wardRepository.findById(request.wardId())
                     .orElseThrow(() -> new ResourceNotFoundException("Ward not found: " + request.wardId()));
         }
+        Integer[] area = staffArea(request.districtCode(), request.localBodyCode(), ward, department);
 
         String temporaryPassword = generateTemporaryPassword();
         User user = User.builder()
@@ -129,6 +133,8 @@ public class AdminUserService {
                 .role(request.role())
                 .department(department)
                 .ward(ward)
+                .districtCode(area[0])
+                .localBodyCode(area[1])
                 .reputationScore(100) // matches V3's DEFAULT 100, same as self-registration
                 .status(UserStatus.ACTIVE)
                 .failedLoginCount(0)
@@ -137,10 +143,51 @@ public class AdminUserService {
         User saved = userRepository.save(user);
 
         auditService.record(actor, "ADMIN_USER_CREATED", "USER", saved.getUserId(),
-                "{\"role\":\"" + request.role() + "\"}");
+                AuditJson.of("role", request.role().name(), "district_code", area[0], "local_body_code", area[1],
+                        "ward_id", ward != null ? ward.getWardId() : null));
 
         deliverTemporaryPassword(saved, temporaryPassword, false);
         return new AdminCreateUserResponse(UserProfileResponse.from(saved), PiiMask.email(saved.getEmail()));
+    }
+
+    /**
+     * V34: {district, body} of a staff account, consistent with the chosen
+     * ward and department. A ward of a body sets the body; a body sets the
+     * district; an area-scoped department must cover the staff member's area.
+     * The app fills these from the same location picker the citizen uses
+     * (flutter .../admin/staff_area_picker.dart), so a mismatch is a 400.
+     */
+    Integer[] staffArea(Integer districtCode, Integer localBodyCode, Ward ward, Department department) {
+        Integer body = localBodyCode;
+        if (ward != null && ward.getLocalBodyCode() != null) {
+            if (body != null && !body.equals(ward.getLocalBodyCode())) {
+                throw new IllegalArgumentException("Ward " + ward.getName() + " is not part of the chosen local body");
+            }
+            body = ward.getLocalBodyCode();
+        }
+        Integer district = districtCode;
+        if (body != null) {
+            Integer finalBody = body;
+            var ref = geoRepository.localBody(body)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown local body " + finalBody));
+            if (district != null && !district.equals(ref.districtCode())) {
+                throw new IllegalArgumentException(ref.name() + " is not in the chosen district");
+            }
+            district = ref.districtCode();
+        } else if (district != null && geoRepository.district(district).isEmpty()) {
+            throw new IllegalArgumentException("Unknown district " + district);
+        }
+        if (department != null) {
+            if (department.getLocalBodyCode() != null && !department.getLocalBodyCode().equals(body)) {
+                throw new IllegalArgumentException("Department " + department.getName()
+                        + " serves another local body - choose a place inside its area");
+            }
+            if (department.getDistrictCode() != null && !department.getDistrictCode().equals(district)) {
+                throw new IllegalArgumentException("Department " + department.getName()
+                        + " serves another district - choose a place inside its area");
+            }
+        }
+        return new Integer[]{district, body};
     }
 
     @Transactional
@@ -156,6 +203,30 @@ public class AdminUserService {
         auditService.record(actor, "ADMIN_USER_ROLE_CHANGED", "USER", saved.getUserId(),
                 "{\"before\":\"" + before + "\",\"after\":\"" + newRole + "\"}");
 
+        return UserProfileResponse.from(saved);
+    }
+
+    /** V34: staff transfer to another area (district / local body / ward), audited with the previous area. */
+    @Transactional
+    public UserProfileResponse updateArea(User actor, Long targetUserId,
+                                          com.jannetai.backend.dto.admin.AdminUpdateAreaRequest request) {
+        User target = requireUser(targetUserId);
+        requireManageableRole(actor, target.getRole());
+        Ward ward = null;
+        if (request.wardId() != null) {
+            ward = wardRepository.findById(request.wardId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Ward not found: " + request.wardId()));
+        }
+        Integer[] area = staffArea(request.districtCode(), request.localBodyCode(), ward, target.getDepartment());
+        String before = AuditJson.of("district_code", target.getDistrictCode(), "local_body_code", target.getLocalBodyCode(),
+                "ward_id", target.getWard() != null ? target.getWard().getWardId() : null);
+        target.setDistrictCode(area[0]);
+        target.setLocalBodyCode(area[1]);
+        target.setWard(ward);
+        User saved = userRepository.save(target);
+        auditService.record(actor, "ADMIN_USER_AREA_CHANGED", "USER", saved.getUserId(), AuditJson.of(
+                "before", before, "district_code", area[0], "local_body_code", area[1],
+                "ward_id", ward != null ? ward.getWardId() : null));
         return UserProfileResponse.from(saved);
     }
 

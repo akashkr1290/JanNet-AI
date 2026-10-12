@@ -2,7 +2,10 @@ package com.jannetai.backend.controller;
 
 import com.jannetai.backend.dto.ward.ActiveFlagRequest;
 import com.jannetai.backend.dto.ward.AdminWardResponse;
+import com.jannetai.backend.dto.ward.WardLocalityRequest;
 import com.jannetai.backend.dto.ward.WardUpsertRequest;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import com.jannetai.backend.security.UserPrincipal;
 import com.jannetai.backend.service.admin.WardAdminService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,9 +36,10 @@ public class AdminWardController {
 
     private final WardAdminService wardAdminService;
 
+    /** V34: {@code localBodyCode} given = that body's wards (LGD imports can hold thousands, so the app always filters). */
     @GetMapping
-    public List<AdminWardResponse> list() {
-        return wardAdminService.listAll();
+    public List<AdminWardResponse> list(@RequestParam(required = false) Integer localBodyCode) {
+        return localBodyCode == null ? wardAdminService.listAll() : wardAdminService.listForBody(localBodyCode);
     }
 
     @PostMapping
@@ -49,6 +53,19 @@ public class AdminWardController {
     public AdminWardResponse update(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long id,
                                     @Valid @RequestBody WardUpsertRequest request) {
         return wardAdminService.update(principal.getUser(), id, request);
+    }
+
+    /** V34: colony / mohalla names of a ward (AreaResolver's LOCALITY match). */
+    @PostMapping("/{id}/localities")
+    public List<String> addLocality(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long id,
+                                    @Valid @RequestBody WardLocalityRequest request) {
+        return wardAdminService.addLocality(principal.getUser(), id, request);
+    }
+
+    @DeleteMapping("/{id}/localities")
+    public List<String> removeLocality(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long id,
+                                       @RequestParam String name) {
+        return wardAdminService.removeLocality(principal.getUser(), id, name);
     }
 
     @PatchMapping("/{id}/status")

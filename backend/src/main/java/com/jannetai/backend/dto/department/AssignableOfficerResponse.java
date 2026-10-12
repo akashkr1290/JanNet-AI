@@ -16,10 +16,28 @@ public record AssignableOfficerResponse(
         String email,
         String mobileNumber,
         String availability,
-        long openComplaints
+        long openComplaints,
+        String area
 ) {
     public static AssignableOfficerResponse from(User officer, String availability, long openComplaints) {
         return new AssignableOfficerResponse(officer.getUserId(), officer.getFullName(), officer.getEmail(),
-                officer.getMobileNumber(), availability, openComplaints);
+                officer.getMobileNumber(), availability, openComplaints, areaOf(officer));
+    }
+
+    /**
+     * The area the officer works for (set by Admin): "Nagar Nigam / Gram
+     * Panchayat · ward". Shown in the Department Head's picker so the right
+     * officer is chosen for a complaint's ward. Null = not limited to an area.
+     */
+    static String areaOf(User officer) {
+        String body = officer.getLocalBody() != null ? officer.getLocalBody().getName() : null;
+        String ward = officer.getWard() != null ? officer.getWard().getName() : null;
+        if (body != null && !body.isBlank() && ward != null && !ward.isBlank()) {
+            return body + " · " + ward;
+        }
+        if (ward != null && !ward.isBlank()) {
+            return ward;
+        }
+        return body != null && !body.isBlank() ? body : null;
     }
 }
