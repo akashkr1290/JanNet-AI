@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../user_api.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Who is signed in, for the home shell (pilot 2026-09-30): the person's name,
 /// role and department (citizens: ward), one per line, e.g.
@@ -43,7 +44,7 @@ class _SignedInIdentityState extends State<SignedInIdentity> {
           return Text(widget.fallbackRole.toUpperCase(), style: detailStyle);
         }
         return Semantics(
-          label: 'Signed in as ${p.fullName}, ${p.roleAndUnit}',
+          label: trs('Signed in as ${p.fullName}, ${p.roleAndUnit}'),
           excludeSemantics: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

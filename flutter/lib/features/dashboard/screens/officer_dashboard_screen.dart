@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/jan_tokens.dart';
@@ -9,6 +9,7 @@ import '../../complaints/models/complaint_status.dart';
 import '../../complaints/screens/officer_complaint_detail_screen.dart';
 import '../../complaints/widgets/status_badge.dart';
 import '../personal_dashboard_api.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 09 (Sep 2026 strict recheck): officer dashboard - own
 /// workload by status, SLA status of open work (overdue / at risk / on track),
@@ -119,7 +120,7 @@ class _OfficerDashboardScreenState extends State<OfficerDashboardScreen> {
                 for (final t in d.todaysTasks) ...[
                   JanCard(
                     padding: const EdgeInsets.all(JanSpace.sm),
-                    semanticLabel: '${t.overdue ? 'Overdue' : 'Due soon'}: ${t.referenceNumber}. Open details',
+                    semanticLabel: trs('${t.overdue ? 'Overdue' : 'Due soon'}: ${t.referenceNumber}. Open details'),
                     onTap: () async {
                       await Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => OfficerComplaintDetailScreen(complaintId: t.complaintId),
@@ -199,7 +200,7 @@ class _OfficerDashboardScreenState extends State<OfficerDashboardScreen> {
 
   Widget _metricRow(IconData icon, String label, String value) {
     return Semantics(
-      label: '$label: $value',
+      label: '${trs(label)}: $value',
       excludeSemantics: true,
       child: Row(
         children: [

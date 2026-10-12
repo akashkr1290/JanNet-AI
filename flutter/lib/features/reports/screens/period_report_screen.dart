@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import '../../../core/api/api_exception.dart';
@@ -6,6 +6,7 @@ import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../period_report.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Audit GAP-039 (SRS 15.12 / 21): daily, weekly or custom-range report for a
 /// Department Head (own department, enforced server-side) or an Admin (all

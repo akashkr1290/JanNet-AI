@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/widgets/error_text.dart';
 import '../../../core/theme/jan_tokens.dart';
@@ -10,6 +10,7 @@ import '../auth_api.dart';
 import 'forgot_password_screen.dart';
 import 'mfa_verification_screen.dart';
 import 'register_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS Screen 16.1 "Registration / Login" (login half) + SRS 27.1 MFA
 /// routing. One shared form for every role, matching AuthController's own
@@ -95,8 +96,8 @@ class _LoginScreenState extends State<LoginScreen> {
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.username],
-              decoration: const InputDecoration(
-                hintText: 'Mobile number or email',
+              decoration: InputDecoration(
+                hintText: trs('Mobile number or email'),
                 prefixIcon: Icon(Icons.person_outline_rounded),
               ),
             ),
@@ -111,10 +112,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (!_loading) _submit();
               },
               decoration: InputDecoration(
-                hintText: 'Enter your password',
+                hintText: trs('Enter your password'),
                 prefixIcon: const Icon(Icons.lock_outline_rounded),
                 suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                  tooltip: trs(_obscurePassword ? 'Show password' : 'Hide password'),
                   icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                   onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                 ),
@@ -144,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   : () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const RegisterScreen()),
                       ),
-              child: const Text.rich(
+              child: const TextRich(
                 TextSpan(
                   text: "Don't have an account? ",
                   style: TextStyle(color: JanColors.slate, fontWeight: FontWeight.w500),

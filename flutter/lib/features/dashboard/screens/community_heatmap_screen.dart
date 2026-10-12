@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/jan_tokens.dart';
@@ -6,6 +6,7 @@ import '../../../core/widgets/jan_illustrations.dart';
 import '../../../core/widgets/jan_stat_card.dart';
 import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 12: public, aggregated complaint density per ward
 /// (GET /community/heatmap - ward name, complaint count, open count; no
@@ -170,7 +171,7 @@ class _WardCard extends StatelessWidget {
             ? ('Moderate activity', JanColors.amberDark, JanColors.amberLight)
             : ('Low activity', JanColors.teal, JanColors.tealLight);
     return Semantics(
-      label: '${point.wardName}: ${point.complaintCount} reports, ${point.openComplaintCount} open, $level',
+      label: trs('${point.wardName}: ${point.complaintCount} reports, ${point.openComplaintCount} open, $level'),
       excludeSemantics: true,
       child: JanCard(
         child: Column(

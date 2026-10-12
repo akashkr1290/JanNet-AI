@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
@@ -9,6 +9,7 @@ import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../dashboard_api.dart';
 import '../models/dashboard_models.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Phase 16 (Government Dashboard Module, SRS 15.10 / 16.3 "Government
 /// Dashboard (Overview)" / 24.3 "Admin Dashboard" / 24.4 "Government
@@ -265,7 +266,7 @@ class _GovernmentDashboardScreenState extends State<GovernmentDashboardScreen> {
         : (clamped >= 70 ? (JanColors.amberDark, 'Needs attention') : (JanColors.error, 'Critical'));
     return JanCard(
       child: Semantics(
-        label: 'SLA compliance ${clamped.toStringAsFixed(1)} percent, $rating',
+        label: trs('SLA compliance ${clamped.toStringAsFixed(1)} percent, $rating'),
         excludeSemantics: true,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,7 +364,7 @@ class _GovernmentDashboardScreenState extends State<GovernmentDashboardScreen> {
   Widget _barRow(String label, int value, int maxValue, Color color) {
     final fraction = maxValue == 0 ? 0.0 : value / maxValue;
     return Semantics(
-      label: '$label: $value',
+      label: '${trs(label)}: $value',
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 5),

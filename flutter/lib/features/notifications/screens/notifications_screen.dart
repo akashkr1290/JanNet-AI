@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/jan_tokens.dart';
@@ -6,6 +6,7 @@ import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../models/app_notification.dart';
 import '../notification_api.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS 20.5 `GET /api/v1/notifications` (Phase 15, Notification Module).
 /// Read-only list, most recent first (server-sorted) - no mark-as-read
@@ -86,7 +87,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const JanSkeletonList(semanticLabel: 'Loading notifications');
+              return JanSkeletonList(semanticLabel: trs('Loading notifications'));
             }
             if (snapshot.hasError || !snapshot.hasData) {
               return JanErrorState.fromError(
@@ -137,7 +138,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     ].join(' · ');
     return Semantics(
       container: true,
-      label: '${failed ? 'Delivery failed. ' : ''}${notification.message}. $meta',
+      label: trs('${failed ? 'Delivery failed. ' : ''}${notification.message}. $meta'),
       excludeSemantics: true,
       child: JanCard(
         padding: const EdgeInsets.all(JanSpace.sm),

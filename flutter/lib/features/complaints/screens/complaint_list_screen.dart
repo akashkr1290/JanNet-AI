@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/jan_tokens.dart';
@@ -10,6 +10,7 @@ import '../models/complaint_status.dart';
 import '../widgets/category_visuals.dart';
 import '../widgets/status_badge.dart';
 import 'complaint_detail_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// The citizen's own complaints (GET /complaints).
 ///
@@ -108,12 +109,12 @@ class _ComplaintListScreenState extends State<ComplaintListScreen> {
             controller: _searchController,
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
-              hintText: 'Search by ID, category or description',
+              hintText: trs('Search by ID, category or description'),
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: _searchController.text.isEmpty
                   ? null
                   : IconButton(
-                      tooltip: 'Clear search',
+                      tooltip: trs('Clear search'),
                       icon: const Icon(Icons.close_rounded),
                       onPressed: _searchController.clear,
                     ),
@@ -145,7 +146,7 @@ class _ComplaintListScreenState extends State<ComplaintListScreen> {
               future: _future,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const JanSkeletonList(semanticLabel: 'Loading your complaints');
+                  return JanSkeletonList(semanticLabel: trs('Loading your complaints'));
                 }
                 if (snapshot.hasError) {
                   return JanErrorState.fromError(
@@ -233,7 +234,7 @@ class ComplaintSummaryCard extends StatelessWidget {
     final created = complaint.createdAt;
     return JanCard(
       onTap: onTap,
-      semanticLabel: '${category.label} complaint ${complaint.referenceNumber}, ${complaint.status.label}. Open details',
+      semanticLabel: trs('${category.label} complaint ${complaint.referenceNumber}, ${complaint.status.label}. Open details'),
       padding: const EdgeInsets.all(JanSpace.sm),
       gradient: LinearGradient(
         begin: Alignment.centerLeft,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/jan_tokens.dart';
@@ -6,6 +6,7 @@ import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../admin_api.dart';
 import '../models/platform_setting.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS 16.3 Admin Settings screen / 15.15 "Admin-level default
 /// thresholds". Each row shows the current value (override if one
@@ -49,8 +50,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
-            labelText: 'Value',
-            helperText: 'Recommended default: ${setting.recommendedDefault}',
+            labelText: trs('Value'),
+            helperText: trs('Recommended default: ${setting.recommendedDefault}'),
           ),
         ),
         actions: [

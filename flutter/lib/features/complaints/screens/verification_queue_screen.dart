@@ -8,6 +8,7 @@ import '../models/complaint.dart';
 import '../models/complaint_status.dart';
 import 'complaint_list_screen.dart';
 import 'verification_review_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 25 (Sep 2026 audit): "Human AI Verification
 /// Workflow" queue - every AI_PROCESSING complaint waiting for a
@@ -46,7 +47,7 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const JanSkeletonList(semanticLabel: 'Loading the verification queue');
+            return JanSkeletonList(semanticLabel: trs('Loading the verification queue'));
           }
           if (snapshot.hasError) {
             return JanErrorState.fromError(

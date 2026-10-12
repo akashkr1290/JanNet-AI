@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_states.dart';
@@ -8,6 +8,7 @@ import '../models/complaint_status.dart';
 import '../sla_countdown.dart';
 import 'complaint_list_screen.dart';
 import 'officer_complaint_detail_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Phase 12 (SRS 16.2 "Officer Queue"). Permissions ("Government Officer
 /// (own queue), Department Head (whole department queue)") are enforced
@@ -131,7 +132,7 @@ class _OfficerQueueScreenState extends State<OfficerQueueScreen> {
               future: _future,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const JanSkeletonList(semanticLabel: 'Loading the queue');
+                  return JanSkeletonList(semanticLabel: trs('Loading the queue'));
                 }
                 if (snapshot.hasError) {
                   return JanErrorState.fromError(
@@ -250,7 +251,7 @@ class _OfficerQueueScreenState extends State<OfficerQueueScreen> {
 
   Widget _chip(String label, IconData icon, Color iconColor, Color background, {Color? fg, String semantics = 'Severity'}) {
     return Semantics(
-      label: '$semantics: $label',
+      label: trs('$semantics: $label'),
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

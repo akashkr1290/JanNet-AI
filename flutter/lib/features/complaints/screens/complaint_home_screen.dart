@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/widgets/jan_shell.dart';
@@ -12,6 +12,7 @@ import '../pending_submission_sync.dart';
 import 'complaint_list_screen.dart';
 import 'complaint_submission_screen.dart';
 import '../../users/widgets/signed_in_identity.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Citizen home shell. Gap-backlog strict recheck (Sep 2026): now four tabs -
 /// Dashboard (Patch 08), Submit, My Complaints, and Community heatmap
@@ -76,8 +77,8 @@ class _ComplaintHomeScreenState extends State<ComplaintHomeScreen> {
           onDestinationSelected: (i) => setState(() => _tab = i),
           onLogout: _logout,
           actions: [
-            JanShellAction(icon: Icons.notifications_outlined, tooltip: 'Notifications', onPressed: _openNotifications),
-            JanShellAction(icon: Icons.settings_outlined, tooltip: AppStrings.of('nav_settings'), onPressed: _openSettings),
+            JanShellAction(icon: Icons.notifications_outlined, tooltip: trs('Notifications'), onPressed: _openNotifications),
+            JanShellAction(icon: Icons.settings_outlined, tooltip: trs(AppStrings.of('nav_settings')), onPressed: _openSettings),
           ],
           destinations: [
             JanDestination(

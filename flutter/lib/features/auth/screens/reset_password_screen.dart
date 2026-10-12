@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/widgets/error_text.dart';
 import '../../../core/theme/jan_tokens.dart';
@@ -8,6 +8,7 @@ import '../widgets/auth_layout.dart';
 import '../../../core/api/api_exception.dart';
 import '../auth_api.dart';
 import 'login_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS 15.2 business rule "password reset via OTP" - Phase 17. Mobile
 /// number arrives pre-filled from ForgotPasswordScreen (editable, in case
@@ -108,8 +109,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               autofillHints: const [AutofillHints.oneTimeCode],
-              decoration: const InputDecoration(
-                hintText: '6-digit code',
+              decoration: InputDecoration(
+                hintText: trs('6-digit code'),
                 prefixIcon: Icon(Icons.pin_outlined),
                 counterText: '',
               ),

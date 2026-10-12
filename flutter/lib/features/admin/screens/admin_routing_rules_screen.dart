@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/jan_tokens.dart';
@@ -7,6 +7,7 @@ import '../../../core/widgets/jan_surfaces.dart';
 import '../../department/department_api.dart';
 import '../admin_api.dart';
 import '../models/admin_routing_rule.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS 17.4 "Admin — Routing Rule Form" / 16.3 Routing screen. Rule
 /// *creation* has existed since Phase 11 (RoutingRuleController) with no
@@ -98,7 +99,7 @@ class _AdminRoutingRulesScreenState extends State<AdminRoutingRulesScreen> {
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const JanSkeletonList(semanticLabel: 'Loading routing rules');
+                return JanSkeletonList(semanticLabel: trs('Loading routing rules'));
               }
               if (snapshot.hasError || !snapshot.hasData) {
                 return JanErrorState.fromError(snapshot.error, fallback: 'Could not load routing rules.', onRetry: _refresh);
@@ -264,7 +265,7 @@ class _AddRoutingRuleDialogState extends State<_AddRoutingRuleDialog> {
               DropdownButtonFormField<String>(
                 initialValue: _category,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Issue category'),
+                decoration: InputDecoration(labelText: trs('Issue category')),
                 items: issueCategories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (v) => setState(() => _category = v!),
               ),
@@ -274,7 +275,7 @@ class _AddRoutingRuleDialogState extends State<_AddRoutingRuleDialog> {
                   : DropdownButtonFormField<int?>(
                       initialValue: _departmentId,
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Department'),
+                      decoration: InputDecoration(labelText: trs('Department')),
                       items: _departments
                           .map((d) => DropdownMenuItem<int?>(value: d.departmentId, child: Text(d.name)))
                           .toList(),
@@ -283,18 +284,18 @@ class _AddRoutingRuleDialogState extends State<_AddRoutingRuleDialog> {
                     ),
               TextFormField(
                 controller: _slaHoursController,
-                decoration: const InputDecoration(labelText: 'SLA hours'),
+                decoration: InputDecoration(labelText: trs('SLA hours')),
                 keyboardType: TextInputType.number,
                 validator: (v) => (v == null || int.tryParse(v.trim()) == null) ? 'Enter a whole number' : null,
               ),
               TextFormField(
                 controller: _aiThresholdController,
-                decoration: const InputDecoration(labelText: 'AI confidence threshold % (optional)'),
+                decoration: InputDecoration(labelText: trs('AI confidence threshold % (optional)')),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
               TextFormField(
                 controller: _duplicateThresholdController,
-                decoration: const InputDecoration(labelText: 'Duplicate similarity threshold % (optional)'),
+                decoration: InputDecoration(labelText: trs('Duplicate similarity threshold % (optional)')),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
             ],

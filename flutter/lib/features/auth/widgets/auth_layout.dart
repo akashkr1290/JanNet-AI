@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/platform_status.dart';
 import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_illustrations.dart';
+import '../../../core/widgets/jan_language_menu.dart';
 import '../../../core/widgets/jan_logo.dart';
 import '../../../core/widgets/jan_surfaces.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Shared layout for every authentication screen (login, registration, OTP,
 /// MFA, forgot/reset password).
@@ -32,7 +34,11 @@ class JanAuthLayout extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [const PlatformStatusBanner(), child],
+              children: [
+                const Align(alignment: Alignment.centerRight, child: JanLanguageMenu()),
+                const PlatformStatusBanner(),
+                child,
+              ],
             ),
           ),
         ),
@@ -74,9 +80,9 @@ class _BrandPanel extends StatelessWidget {
   const _BrandPanel();
 
   static const _points = [
-    (Icons.add_a_photo_outlined, 'Report civic issues', 'Photo, location and a short note - done in a minute.'),
+    (Icons.add_a_photo_outlined, 'Report civic issues', 'A photo, the location and a short note.'),
     (Icons.timeline_rounded, 'Track every update', 'See each step from submission to resolution.'),
-    (Icons.diversity_3_outlined, 'Improve your community', 'Your reports help build a cleaner, safer city.'),
+    (Icons.account_tree_outlined, 'Know who is responsible', 'Each complaint shows its department and ward.'),
   ];
 
   @override
@@ -107,8 +113,8 @@ class _BrandPanel extends StatelessWidget {
                   const JanLogo(markSize: 40, fontSize: 26, onDark: true),
                   const Spacer(),
                   const Text(
-                    'Report.\nTrack.\nImprove.',
-                    style: TextStyle(color: JanColors.white, fontSize: 44, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: -1),
+                    'Report a civic problem.\nTrack it until it is fixed.',
+                    style: TextStyle(color: JanColors.white, fontSize: 38, height: 1.15, fontWeight: FontWeight.w800, letterSpacing: -1),
                   ),
                   const SizedBox(height: JanSpace.xl),
                   for (final p in _points)

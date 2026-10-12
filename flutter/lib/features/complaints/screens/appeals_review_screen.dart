@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/api/api_exception.dart';
@@ -8,6 +8,7 @@ import '../../../core/widgets/jan_surfaces.dart';
 import '../complaints_api.dart';
 import 'officer_complaint_detail_screen.dart';
 import '../../../core/api/api_time.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 14 (Sep 2026 strict recheck): the "Review" step of the
 /// appeal flow. The backend review endpoints existed (ComplaintAppealService)
@@ -45,7 +46,7 @@ class _AppealsReviewScreenState extends State<AppealsReviewScreen> {
           controller: noteController,
           maxLength: 1000,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Note to record (optional)'),
+          decoration: InputDecoration(labelText: trs('Note to record (optional)')),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -76,7 +77,7 @@ class _AppealsReviewScreenState extends State<AppealsReviewScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const JanSkeletonList(semanticLabel: 'Loading appeals');
+            return JanSkeletonList(semanticLabel: trs('Loading appeals'));
           }
           if (snapshot.hasError) {
             return JanErrorState.fromError(snapshot.error, fallback: 'Could not load appeals.', onRetry: _refresh);

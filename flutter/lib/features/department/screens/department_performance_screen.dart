@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
@@ -9,6 +9,7 @@ import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../department_api.dart';
 import '../models/department_performance.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Phase 13 (SRS 16.2 "Department Performance View (Department Head)":
 /// "Monitor officer workload, SLA compliance, and department KPIs" -
@@ -191,7 +192,7 @@ class _DepartmentPerformanceScreenState extends State<DepartmentPerformanceScree
         : (clamped >= 70 ? (JanColors.amberDark, 'Needs attention') : (JanColors.error, 'Critical'));
     return JanCard(
       child: Semantics(
-        label: 'SLA compliance ${clamped.toStringAsFixed(1)} percent, $rating',
+        label: trs('SLA compliance ${clamped.toStringAsFixed(1)} percent, $rating'),
         excludeSemantics: true,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

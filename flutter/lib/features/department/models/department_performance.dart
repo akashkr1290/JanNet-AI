@@ -18,6 +18,10 @@ class OfficerSummary {
   /// Complaints the officer currently has open (Assigned or In Progress).
   final int openComplaints;
 
+  /// The ward / Nagar Nigam / Gram Panchayat the officer works for (set by
+  /// Admin); null = not limited to one area.
+  final String? area;
+
   OfficerSummary({
     required this.userId,
     required this.fullName,
@@ -25,6 +29,7 @@ class OfficerSummary {
     this.mobileNumber,
     this.availability = 'AVAILABLE',
     this.openComplaints = 0,
+    this.area,
   });
 
   factory OfficerSummary.fromJson(Map<String, dynamic> json) {
@@ -35,6 +40,7 @@ class OfficerSummary {
       mobileNumber: json['mobileNumber'] as String?,
       availability: (json['availability'] as String?) ?? 'AVAILABLE',
       openComplaints: (json['openComplaints'] as num?)?.toInt() ?? 0,
+      area: json['area'] as String?,
     );
   }
 
@@ -44,8 +50,13 @@ class OfficerSummary {
         _ => 'Available',
       };
 
-  /// e.g. "Asha Rao · Available · 2 open"
-  String get pickerLabel => '$fullName · $availabilityLabel · $openComplaints open';
+  /// e.g. "Asha Rao · Ward 91 - Kavi Nagar · Available · 2 open"
+  String get pickerLabel => [
+        fullName,
+        if (area != null && area!.isNotEmpty) area!,
+        availabilityLabel,
+        '$openComplaints open',
+      ].join(' · ');
 }
 
 /// Mirrors OfficerWorkloadResponse (backend, dto/department/) - one row
