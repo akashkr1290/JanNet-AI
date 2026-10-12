@@ -8904,6 +8904,230 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "19. Geo - Location (V34/V36, no API key)",
+      "item": [
+        {
+          "name": "Locate a point (area from boundaries)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/locate?lat=28.6692&lng=77.4538",
+            "description": "V36: GPS -> PIN, town / Gram Panchayat, village and WARD by ST_Contains on published boundaries. ward is set only when a ward map contains the point; otherwise suggestedWard + wardVerification=REQUIRES_VERIFICATION."
+          }
+        },
+        {
+          "name": "Map search (own dataset, then OpenStreetMap)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/search?q=Raj Nagar&lat=28.67&lng=77.44",
+            "description": "V36: PIN, post office, ward, town, village names from our dataset first; OpenStreetMap Nominatim (rate-limited, cached, no key) only for landmarks. Only moves the pin."
+          }
+        },
+        {
+          "name": "PIN autocomplete",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/pincodes?prefix=2010",
+            "description": "V36: PIN suggestions while typing (post office, district, served)."
+          }
+        },
+        {
+          "name": "Local bodies a PIN covers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/pincodes/201102/local-bodies",
+            "description": "V36: many-to-many PIN <-> local body, each with mappingSource and verificationStatus."
+          }
+        },
+        {
+          "name": "Ward outline (GeoJSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/wards/{{wardId}}/boundary",
+            "description": "V36: the ward polygon the app draws on the map."
+          }
+        },
+        {
+          "name": "Assignment + history of a complaint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/complaints/{{complaintId}}/assignment",
+            "description": "V36: department, whether an officer is assigned, area, location verification status and the routing history. Officer names are returned to staff only."
+          }
+        },
+        {
+          "name": "Location verification queue (staff)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/complaints/location-verification?page=0&pageSize=20",
+            "description": "V36: open complaints whose ward could not be proven by a ward map. Department Head: own department; officer: own complaints; Verification Team / Admin: all."
+          }
+        },
+        {
+          "name": "Confirm the ward (staff)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/complaints/{{complaintId}}/location-verification",
+            "description": "V36: staff confirm or correct the ward (wardId null = confirm the area as it is).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"wardId\": \"{{wardId}}\", \"note\": \"Checked on the ward map\"}"
+            }
+          }
+        },
+        {
+          "name": "Search suggestions (Google, optional - off by default)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/autocomplete?q=Republic Crossing&session=demo-session-1&lat=28.70&lng=77.43",
+            "description": "V34: Places API (New) autocomplete through the backend (GoogleMapsClient). Empty list when Google is off or today's quota is used up."
+          }
+        },
+        {
+          "name": "Place details of a suggestion",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/places/{{placeId}}?session=demo-session-1&landmark=Republic Crossing",
+            "description": "V34: coordinates + address + LGD area (AreaResolver) of a picked suggestion. Set placeId from the autocomplete response."
+          }
+        },
+        {
+          "name": "Address + area of a pin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/reverse?lat=24.940000&lng=84.840000",
+            "description": "V34: Google reverse geocode (cached) + LGD state/district/body/village/ward match."
+          }
+        },
+        {
+          "name": "PIN code -> district, villages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/pincodes/824236",
+            "description": "V34 manual flow step 1."
+          }
+        },
+        {
+          "name": "States",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/states",
+            "description": "V34 LGD states."
+          }
+        },
+        {
+          "name": "Served districts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/districts",
+            "description": "V34: no stateCode = districts this deployment serves (geo_districts.is_served)."
+          }
+        },
+        {
+          "name": "Local bodies of a district",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/local-bodies?districtCode=196&kind=RURAL&q=pakri",
+            "description": "V34: Gram Panchayats (RURAL) / urban bodies (URBAN)."
+          }
+        },
+        {
+          "name": "Villages search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/villages?districtCode=196&q=jolhabigha",
+            "description": "V34: sound-alike search ('jolhabigha' finds 'Jolah Bigha')."
+          }
+        },
+        {
+          "name": "Wards of a local body",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/geo/local-bodies/248988/wards",
+            "description": "V34: wards of Ghaziabad Municipal Corporation (empty until the LGD ward list is imported)."
+          }
+        },
+        {
+          "name": "Admin - set district served",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/geo/districts/196/served",
+            "description": "V34 Admin: complaints from unserved districts are flagged OUT_OF_JURISDICTION.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"served\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin - Google usage today (only if Google is switched on)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/admin/geo/google-usage",
+            "description": "V34 Admin: calls per SKU vs the daily cap (GoogleQuota)."
+          }
+        },
+        {
+          "name": "Admin - staff transfer (area)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/area",
+            "description": "V34: officer / head moved to another Gram Panchayat / Nagar Nigam / ward.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"districtCode\": 196,\n  \"localBodyCode\": 95600,\n  \"wardId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -9020,6 +9244,11 @@
     },
     {
       "key": "imageSig",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "placeId",
       "value": "",
       "type": "string"
     }
