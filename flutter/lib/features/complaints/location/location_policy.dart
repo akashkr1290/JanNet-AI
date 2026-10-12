@@ -26,12 +26,24 @@ class LocationPolicy {
   /// "camera" button also offers the photo library).
   static const freshCaptureWindow = Duration(minutes: 3);
 
+  /// Pilot deployment (Ghaziabad): only a hint for ranking place-name search
+  /// results before the citizen has moved the map. Places elsewhere are still found.
+  static const pilotSearchLat = 28.6692;
+  static const pilotSearchLng = 77.4538;
+
   /// Minimum map zoom for placing a pin by hand (street level).
   static const pinZoom = 16.0;
   static const minConfirmZoom = 15.0;
 
   /// How long to wait for a GPS fix after a photo is taken.
   static const captureFixTimeout = Duration(seconds: 20);
+
+  /// V34 photo size (product decision 2026-10-11: 500 KB - 2 MB): longer side
+  /// at most this many pixels, file at most [photoMaxBytes] - quality is
+  /// lowered step by step until it fits (photo_intake.dart, photo_downscale*.dart,
+  /// Android MainActivity.shrink). Small originals are never enlarged.
+  static const photoMaxSide = 2048;
+  static const photoMaxBytes = 2 * 1024 * 1024;
 
   /// "Save & Report Later" drafts are kept this long.
   static const savedDraftLifetime = Duration(days: veryOldPhotoDays);

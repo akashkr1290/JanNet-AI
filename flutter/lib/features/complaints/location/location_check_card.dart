@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/jan_tokens.dart';
 import '../models/complaint.dart';
 import 'incident_location.dart';
 import 'incident_map.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Staff view of a complaint's incident location (V33): the map with the
 /// confirmed pin (and the automatically detected point when the citizen moved
@@ -30,8 +31,17 @@ class LocationCheckCard extends StatelessWidget {
         'LOW_ACCURACY' => 'Imprecise GPS',
         'PIN_MOVED_FAR' => 'Pin moved from photo location',
         'NO_PHOTO_LOCATION' => 'No location in photo',
-        'OUT_OF_JURISDICTION' => 'Outside municipal area',
+        'OUT_OF_JURISDICTION' => 'Outside the served districts',
         _ => flag,
+      };
+
+  /// V34: how the ward was decided (backend LocationService#applyArea).
+  static String wardMatchLabel(String? match) => switch (match) {
+        'BOUNDARY' => ' (inside ward boundary)',
+        'NEAREST' => ' (nearest ward boundary)',
+        'LOCALITY' => ' (from the colony name)',
+        'CITIZEN' => ' (chosen by citizen)',
+        _ => '',
       };
 
   static String distanceLabel(double meters) =>
@@ -41,6 +51,9 @@ class LocationCheckCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = location;
     final rows = <(String, String)>[
+      if (l.areaLine != null) ('Place', l.areaLine!),
+      if (l.formattedAddress != null) ('Address', l.formattedAddress!),
+      if (l.wardName != null) ('Ward', '${l.wardName!}${wardMatchLabel(l.wardMatch)}'),
       ('How it was found', sourceLabel(l.source)),
       ('Confirmed by citizen', l.confirmedByCitizen ? 'Yes, on the map' : 'No (older app)'),
       if (l.accuracyMeters != null) ('GPS accuracy', '± ${distanceLabel(l.accuracyMeters!)}'),
@@ -62,7 +75,7 @@ class LocationCheckCard extends StatelessWidget {
             point: GeoPoint(l.latitude!, l.longitude!),
             detected: l.hasDetected ? GeoPoint(l.detectedLatitude!, l.detectedLongitude!) : null,
             height: 190,
-            semanticLabel: 'Map of the problem location',
+            semanticLabel: trs('Map of the problem location'),
           ),
         if (l.flags.isNotEmpty) ...[
           const SizedBox(height: JanSpace.xs),
@@ -85,7 +98,7 @@ class LocationCheckCard extends StatelessWidget {
         for (final (label, value) in rows)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text.rich(
+            child: TextRich(
               TextSpan(children: [
                 TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w700, color: JanColors.slate)),
                 TextSpan(text: value),

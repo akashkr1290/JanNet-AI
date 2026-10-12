@@ -1,59 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 
+import '../../../core/maps/jan_map.dart';
 import '../../../core/theme/jan_tokens.dart';
 import 'incident_location.dart';
-
-/// OpenStreetMap tiles (free; tile usage policy: identify the app, show the
-/// attribution, no heavy/bulk use - fine for a pilot's interactive use).
-TileLayer osmTileLayer() => TileLayer(
-      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      userAgentPackageName: 'com.jannetai.app',
-      maxNativeZoom: 19,
-    );
-
-/// Required "© OpenStreetMap contributors" attribution.
-Widget osmAttribution() => SimpleAttributionWidget(source: const Text('OpenStreetMap contributors'));
-
-LatLng toLatLng(GeoPoint p) => LatLng(p.latitude, p.longitude);
+import '../../../core/l10n/tr_text.dart';
 
 /// The red "problem location" pin. Its tip is the bottom-centre of the icon.
+/// Drawn ON TOP of the map (not as a map marker) so it stays fixed while the
+/// citizen moves the map underneath - incident_location_picker_screen.dart and
+/// [IncidentMapPreview].
 class ProblemPin extends StatelessWidget {
   final double size;
   const ProblemPin({super.key, this.size = 44});
 
   @override
   Widget build(BuildContext context) =>
-      Icon(Icons.location_on, size: size, color: JanColors.error, semanticLabel: 'Problem location');
-}
-
-/// Small marker for the automatically detected (photo) location, shown to
-/// staff and on the map when the citizen moved the pin away from it.
-class DetectedDot extends StatelessWidget {
-  const DetectedDot({super.key});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: JanColors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: JanColors.navy, width: 2),
-        ),
-        alignment: Alignment.center,
-        child: const Icon(Icons.photo_camera, size: 13, color: JanColors.navy, semanticLabel: 'Photo location'),
-      );
+      Icon(Icons.location_on, size: size, color: JanColors.error, semanticLabel: trs('Problem location'));
 }
 
 /// Read-only map snippet of an incident location (submission summary,
-/// complaint detail). [detected] adds the photo-location marker when it is
-/// a different point.
+/// complaint detail, location check card) - the same MapLibre map as the
+/// picker (core/maps/jan_map.dart), with gestures off. [detected] adds the
+/// photo-location marker when it is a different point; [outline] the ward
+/// boundary when known.
 class IncidentMapPreview extends StatelessWidget {
   final GeoPoint point;
   final GeoPoint? detected;
   final double height;
   final double zoom;
   final String semanticLabel;
+  final List<List<GeoPoint>> outline;
 
   const IncidentMapPreview({
     super.key,
@@ -62,39 +38,38 @@ class IncidentMapPreview extends StatelessWidget {
     this.height = 170,
     this.zoom = 16,
     this.semanticLabel = 'Map showing the problem location',
+    this.outline = const [],
   });
 
   @override
   Widget build(BuildContext context) {
     final showDetected = detected != null && distanceMeters(detected!, point) > 5;
     return Semantics(
-      label: semanticLabel,
+      label: trs(semanticLabel),
       container: true,
       child: ClipRRect(
         borderRadius: JanRadius.mdAll,
         child: SizedBox(
           height: height,
-          child: FlutterMap(
-            key: ValueKey('${point.latitude},${point.longitude},${detected?.latitude},${detected?.longitude}'),
-            options: MapOptions(
-              initialCenter: toLatLng(point),
-              initialZoom: zoom,
-              interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
-            ),
+          child: Stack(
             children: [
-              osmTileLayer(),
-              MarkerLayer(markers: [
-                if (showDetected)
-                  Marker(point: toLatLng(detected!), width: 24, height: 24, child: const DetectedDot()),
-                Marker(
-                  point: toLatLng(point),
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.topCenter,
-                  child: const ProblemPin(),
+              Positioned.fill(
+                child: JanMap(
+                  // a new point = a new preview (the map widget keeps its own camera)
+                  key: ValueKey('${point.latitude},${point.longitude},${detected?.latitude},${detected?.longitude}'),
+                  center: point,
+                  zoom: zoom,
+                  interactive: false,
+                  markers: [if (showDetected) JanMarker(detected!, JanMarkerKind.photo)],
+                  outline: outline,
                 ),
-              ]),
-              osmAttribution(),
+              ),
+              // pin tip on the centre point: icon bottom at the vertical centre
+              const IgnorePointer(
+                child: Center(
+                  child: Padding(padding: EdgeInsets.only(bottom: 40), child: ProblemPin(size: 40)),
+                ),
+              ),
             ],
           ),
         ),
