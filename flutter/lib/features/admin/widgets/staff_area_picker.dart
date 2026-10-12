@@ -4,6 +4,7 @@ import '../../../core/api/geo_api.dart';
 import '../../../core/theme/jan_tokens.dart';
 import '../../complaints/location/geo_models.dart';
 import '../../../core/l10n/tr_text.dart';
+import '../../../core/widgets/error_text.dart';
 
 /// The area chosen in an Admin form (officer / department head account,
 /// department, ward). Codes are LGD codes; sent to the backend as
@@ -194,7 +195,7 @@ class _StaffAreaPickerState extends State<StaffAreaPicker> {
                     district: v.district, body: v.body, ward: id == null ? null : _wards.firstWhere((w) => w.wardId == id))),
               ),
       if (_busy) const Padding(padding: EdgeInsets.only(top: 6), child: LinearProgressIndicator()),
-      if (_error != null) Text(_error!, style: const TextStyle(color: JanColors.error, fontSize: 12.5)),
+      if (_error != null) Padding(padding: const EdgeInsets.only(top: 6), child: ErrorText(_error!)),
       if (v.summary.isNotEmpty)
         Padding(
           padding: const EdgeInsets.only(top: 6),

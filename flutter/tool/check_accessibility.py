@@ -44,11 +44,17 @@ def check(root: Path = ROOT) -> list[str]:
                 if "semanticLabel:" not in block and "excludeFromSemantics: true" not in block:
                     problems.append(f"{where(pos)} {kind} without semanticLabel/excludeFromSemantics")
         for pos, _ in calls(src, "GestureDetector"):
-            if "Semantics(" not in src[max(0, pos - 300):pos]:
+            # 500, not 300: a detector inside Semantics > MouseRegion > ...
+            # (JanPressable) sits ~320 characters below its Semantics(.
+            if "Semantics(" not in src[max(0, pos - 500):pos]:
                 problems.append(f"{where(pos)} GestureDetector not wrapped in Semantics")
         for m in re.finditer(r"\bText\(\s*_error!", src):
             problems.append(f"{where(m.start())} error shown with Text(); use ErrorText (live region)")
-        for m in re.finditer(r"\btextScale(r|Factor)\s*:", src):
+        for m in re.finditer(r"\btextScale(r|Factor)\s*:\s*([A-Za-z_][\w.]*)?", src):
+            # `textScaler: textScaler` only forwards the caller's value (the
+            # Text wrapper in core/l10n); an override sets a scale of its own.
+            if m.group(2) in (m.group(0).split(":")[0].strip(), "this." + m.group(0).split(":")[0].strip()):
+                continue
             problems.append(f"{where(m.start())} text scale override")
     return problems
 
