@@ -133,14 +133,49 @@ app:
     # PersonalSettingKey registry (neither SRS 15.15 admin-threshold list
     # nor its personal-settings list names a municipal boundary) - narrow
     # this via env vars for a real deployment's actual city boundary.
-    # Audit GAP-008: GPS points are reverse-geocoded to the ward whose
-    # boundary_geojson contains them; a point outside every boundary goes to
-    # the nearest ward within this distance (SRS 15.5), else stays ward-less.
+    # Audit GAP-008 / V36: a GPS point gets the ward whose boundary contains
+    # it. Since the 2026-10-11 spec a ward is never ASSIGNED from proximity:
+    # the nearest ward within this distance is only offered to staff as a
+    # suggestion (locations.suggested_ward_id).
     nearest-ward-max-meters: ${GEO_NEAREST_WARD_MAX_METERS:500}
+    # V36: OpenStreetMap Nominatim (no key) - road / colony names for the
+    # address line under the pin, and landmark search the own dataset cannot
+    # answer ("Republic Crossing"). Public-server usage policy: at most 1
+    # request per second, an identifying User-Agent, results cached
+    # (NominatimClient enforces all three). It never decides the area: area,
+    # PIN and ward always come from geo_boundaries / LGD tables.
+    nominatim:
+      enabled: ${NOMINATIM_ENABLED:true}
+      base-url: ${NOMINATIM_BASE_URL:https://nominatim.openstreetmap.org}
+      # contact e-mail sent with each request as the policy asks; optional
+      email: ${NOMINATIM_EMAIL:}
+      user-agent: ${NOMINATIM_USER_AGENT:JanNetAI-civic-complaints/1.0}
+      timeout-ms: ${NOMINATIM_TIMEOUT_MS:4000}
+    # Photon (photon.komoot.io): free OpenStreetMap search, no key, made for
+    # search-as-you-type. First choice for places outside our own dataset;
+    # Nominatim above is the fallback. Own server later: PHOTON_BASE_URL only.
+    photon:
+      enabled: ${PHOTON_ENABLED:true}
+      base-url: ${PHOTON_BASE_URL:https://photon.komoot.io}
+      user-agent: ${PHOTON_USER_AGENT:JanNetAI-civic-complaints/1.0}
+      timeout-ms: ${PHOTON_TIMEOUT_MS:4000}
     municipal-min-latitude: ${GEO_MIN_LAT:6.5}
     municipal-max-latitude: ${GEO_MAX_LAT:37.1}
     municipal-min-longitude: ${GEO_MIN_LNG:68.0}
     municipal-max-longitude: ${GEO_MAX_LNG:97.5}
+    # V34: once any district is marked served (geo_districts.is_served), the
+    # served districts decide OUT_OF_JURISDICTION and the box above is only
+    # used for points whose district cannot be found (LocationService).
+  google-maps:
+    # Server-side Google calls (GoogleMapsClient): Places API (New) search and
+    # Geocoding. Off unless a key is set. The key is the SERVER key (restricted
+    # to those two APIs) - never the browser/Android map key. Daily caps keep
+    # usage inside Google's free monthly amount (GoogleQuota).
+    enabled: ${GOOGLE_MAPS_ENABLED:false}
+    server-key: ${GOOGLE_MAPS_SERVER_KEY:}
+    daily-autocomplete-limit: ${GOOGLE_MAPS_DAILY_AUTOCOMPLETE:2200}
+    daily-place-details-limit: ${GOOGLE_MAPS_DAILY_PLACE_DETAILS:2200}
+    daily-geocode-limit: ${GOOGLE_MAPS_DAILY_GEOCODE:2200}
   location:
     # V33 incident-location review flags (LocationFlags). Warnings for staff
     # only - a flagged complaint is accepted and its confirmed location is
