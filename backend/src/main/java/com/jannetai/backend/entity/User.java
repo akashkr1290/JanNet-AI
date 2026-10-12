@@ -54,6 +54,27 @@ public class User {
     @JoinColumn(name = "ward_id")
     private Ward ward;
 
+    /**
+     * V34 staff jurisdiction, chosen by Admin with the location picker
+     * (AdminUserService): the district and the Gram Panchayat / urban body
+     * an officer or department head works for; {@link #ward} is their ward.
+     * NULL for citizens, Admins and accounts created before V34.
+     */
+    @Column(name = "district_code", columnDefinition = "INT UNSIGNED")
+    private Integer districtCode;
+
+    @Column(name = "local_body_code", columnDefinition = "INT UNSIGNED")
+    private Integer localBodyCode;
+
+    /** Read-only, for the body / district names in UserProfileResponse#withNames. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "local_body_code", insertable = false, updatable = false)
+    private LocalBody localBody;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "district_code", insertable = false, updatable = false)
+    private GeoDistrict district;
+
     @Column(name = "reputation_score", nullable = false)
     private Integer reputationScore;
 

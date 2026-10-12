@@ -42,6 +42,21 @@ public record AdminCreateUserRequest(
 
         Long departmentId,
 
-        Long wardId
+        Long wardId,
+
+        /*
+         * V34: where the officer / department head works, chosen by Admin with
+         * the location picker (state -> district -> Gram Panchayat / urban body
+         * -> ward) instead of typing it. A body brings its district; a ward must
+         * belong to the body. Checked in AdminUserService#staffArea.
+         */
+        Integer districtCode,
+
+        Integer localBodyCode
 ) {
+    /** Before V34 (no area) - existing callers and tests. */
+    public AdminCreateUserRequest(String fullName, String mobileNumber, String email, Role role, Long departmentId,
+                                  Long wardId) {
+        this(fullName, mobileNumber, email, role, departmentId, wardId, null, null);
+    }
 }

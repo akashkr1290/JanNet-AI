@@ -44,6 +44,7 @@ class WardAndDepartmentAdminServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private RoutingRuleRepository routingRuleRepository;
     @Mock private AuditService auditService;
+    @Mock private com.jannetai.backend.service.geo.GeoRepository geoRepository; // V34 area checks
 
     private WardAdminService wards;
     private DepartmentAdminService departments;
@@ -56,8 +57,9 @@ class WardAndDepartmentAdminServiceTest {
 
     @BeforeEach
     void setUp() {
-        wards = new WardAdminService(wardRepository, auditService);
-        departments = new DepartmentAdminService(departmentRepository, userRepository, routingRuleRepository, auditService);
+        wards = new WardAdminService(wardRepository, auditService, geoRepository);
+        departments = new DepartmentAdminService(departmentRepository, userRepository, routingRuleRepository, auditService,
+                geoRepository);
         ReflectionTestUtils.setField(departments, "fallbackDepartmentName", "General Triage");
         lenient().when(wardRepository.save(any(Ward.class))).thenAnswer(inv -> {
             Ward w = inv.getArgument(0);
@@ -72,7 +74,7 @@ class WardAndDepartmentAdminServiceTest {
     @Test
     void wardWithAValidNonOverlappingBoundaryIsSavedNormalisedAndAudited() {
         Ward neighbour = Ward.builder().wardId(2L).name("Ward 2").isActive(true).boundaryGeojson(square(1, 0, 2, 1)).build();
-        when(wardRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(List.of(neighbour));
+        when(wardRepository.findByLocalBodyCodeIsNullAndIsActiveTrueOrderByNameAsc()).thenReturn(List.of(neighbour));
 
         var saved = wards.create(admin, new WardUpsertRequest(" Ward 1 ", "W1", square(0, 0, 1, 1)));
 
@@ -85,7 +87,7 @@ class WardAndDepartmentAdminServiceTest {
     @Test
     void overlappingAnotherActiveWardIsAConflictAndNothingIsSaved() {
         Ward other = Ward.builder().wardId(2L).name("Ward 2").isActive(true).boundaryGeojson(square(0.5, 0.5, 2, 2)).build();
-        when(wardRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(List.of(other));
+        when(wardRepository.findByLocalBodyCodeIsNullAndIsActiveTrueOrderByNameAsc()).thenReturn(List.of(other));
 
         assertThatThrownBy(() -> wards.create(admin, new WardUpsertRequest("Ward 1", null, square(0, 0, 1, 1))))
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("Ward 2");
@@ -105,7 +107,7 @@ class WardAndDepartmentAdminServiceTest {
     void updateKeepsThePreviousBoundaryInTheAuditTrail() {
         Ward ward = Ward.builder().wardId(3L).name("Ward 3").isActive(true).boundaryGeojson(square(0, 0, 1, 1)).build();
         when(wardRepository.findById(3L)).thenReturn(Optional.of(ward));
-        when(wardRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(List.of(ward)); // itself is skipped
+        when(wardRepository.findByLocalBodyCodeIsNullAndIsActiveTrueOrderByNameAsc()).thenReturn(List.of(ward)); // itself is skipped
 
         wards.update(admin, 3L, new WardUpsertRequest("Ward 3", null, square(0, 0, 2, 2)));
 
