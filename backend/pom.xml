@@ -313,6 +313,32 @@
           </execution>
         </executions>
       </plugin>
+      <!-- Mockito's inline mock maker needs a Java agent. Self-attach at runtime
+           fails on some Docker/WSL hosts ("Could not initialize plugin:
+           interface org.mockito.plugins.MockMaker"), so the agent is loaded at
+           JVM start. mockito-core 5.11 (Spring Boot 3.3) has no Premain-Class,
+           so Byte Buddy's agent jar is used - Mockito then finds the installed
+           Instrumentation. maven-dependency-plugin:properties exposes the jar
+           path as ${net.bytebuddy:byte-buddy-agent:jar}; @{argLine} keeps JaCoCo. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>mockito-agent-path</id>
+            <goals>
+              <goal>properties</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>@{argLine} -javaagent:${net.bytebuddy:byte-buddy-agent:jar} -Xshare:off</argLine>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
