@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_surfaces.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 35/48 (Sep 2026 audit): "The application handles
 /// citizen identity, location, complaint photos, contact information -

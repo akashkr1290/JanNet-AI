@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../core/theme/jan_tokens.dart';
 import '../../core/widgets/jan_illustrations.dart';
 import '../../core/widgets/jan_logo.dart';
 import '../../core/widgets/jan_surfaces.dart';
+import '../../core/l10n/tr_text.dart';
 
 /// First-launch onboarding (post-UI gap fix): the three-step introduction
 /// from the approved JanNet AI design reference - Report civic issues /
@@ -37,8 +38,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       Icons.add_a_photo_outlined,
       JanColors.primary,
       'Report Civic Issues',
-      'Take a photo of a pothole, garbage, a broken street light or any civic problem, '
-          'add a short note and your location. It takes about a minute.',
+      'Take a photo of a pothole, garbage, a broken street light or any other civic problem. '
+          'Add a short note and confirm the location on the map.',
     ),
     _OnboardingPage(
       Icons.timeline_rounded,
@@ -51,8 +52,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       Icons.diversity_3_outlined,
       JanColors.amberDark,
       'Improve Your Community',
-      'Your reports show where help is needed most, so your city can fix problems '
-          'faster and build a cleaner, safer neighbourhood.',
+      'Each complaint shows its department and ward. A ward is marked as confirmed only when it '
+          'comes from a published ward map; otherwise the office verifies it.',
     ),
   ];
 
@@ -107,7 +108,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                     Semantics(
-                      label: 'Page ${_index + 1} of ${_pages.length}',
+                      label: trs('Page ${_index + 1} of ${_pages.length}'),
                       excludeSemantics: true,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
