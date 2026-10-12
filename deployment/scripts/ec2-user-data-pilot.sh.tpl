@@ -137,6 +137,12 @@ put_param CORS_ALLOWED_ORIGINS
 # nginx sets X-Real-IP (real client IP via the Worker) - the only header the backend trusts.
 put RATE_LIMIT_CLIENT_IP_HEADER X-Real-IP
 
+# V34: Google search / address (server key, restricted to Places API (New) + Geocoding).
+# Missing parameter = Google stays off and the app uses the LGD lists only.
+GOOGLE_MAPS_SERVER_KEY=$(get_param "GOOGLE_MAPS_SERVER_KEY")
+put GOOGLE_MAPS_SERVER_KEY "$GOOGLE_MAPS_SERVER_KEY"
+if [ -n "$GOOGLE_MAPS_SERVER_KEY" ]; then put GOOGLE_MAPS_ENABLED true; fi
+
 put AI_SERVICE_BASE_URL http://ai-service:8001
 put AI_SERVICE_API_KEY "$AI_SERVICE_API_KEY"
 put AI_SERVICE_ENABLED true
