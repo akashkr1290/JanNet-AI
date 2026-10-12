@@ -23,7 +23,22 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
      * so the mapping stays correct even if a real deployment's seed data
      * uses a different literal name.
      */
-    Optional<Department> findByNameAndIsActiveTrue(String name);
+    // V34: names repeat per area ("Public Works" for Gaya and for Ghaziabad), so
+    // this lookup (routing rules, fallback department) means the GLOBAL one.
+    @org.springframework.data.jpa.repository.Query("SELECT d FROM Department d WHERE d.name = :name AND d.isActive = true "
+            + "AND d.districtCode IS NULL AND d.localBodyCode IS NULL")
+    Optional<Department> findByNameAndIsActiveTrue(@org.springframework.data.repository.query.Param("name") String name);
+
+    /**
+     * V34 area routing (DepartmentAssignmentService#forArea): the same-named
+     * department of the complaint's local body, then of its district.
+     */
+    Optional<Department> findFirstByNameAndLocalBodyCodeAndIsActiveTrue(String name, Integer localBodyCode);
+
+    Optional<Department> findFirstByNameAndDistrictCodeAndLocalBodyCodeIsNullAndIsActiveTrue(String name, Integer districtCode);
+
+    /** V34 Admin uniqueness: one name per area (uq_departments_name_scope). Null codes match IS NULL. */
+    Optional<Department> findFirstByNameAndDistrictCodeAndLocalBodyCode(String name, Integer districtCode, Integer localBodyCode);
 
     List<Department> findByIsActiveTrueOrderByNameAsc();
 

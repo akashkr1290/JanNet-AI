@@ -30,6 +30,20 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
 
     boolean existsByReferenceNumber(String referenceNumber);
 
+    /**
+     * V36 location verification queue: open complaints whose location could
+     * not be proven (locations.location_verification_status). {@code departmentId}
+     * / {@code officerId} narrow it to a Department Head's / officer's queue.
+     */
+    @Query("SELECT c FROM Complaint c JOIN c.location l LEFT JOIN c.department d LEFT JOIN c.assignedOfficer o "
+            + "WHERE l.locationVerificationStatus = 'REQUIRES_VERIFICATION' AND c.status NOT IN :closed "
+            + "AND (:departmentId IS NULL OR d.departmentId = :departmentId) "
+            + "AND (:officerId IS NULL OR o.userId = :officerId) ORDER BY c.createdAt DESC")
+    Page<Complaint> findLocationVerificationQueue(@Param("closed") java.util.Collection<ComplaintStatus> closed,
+                                                  @Param("departmentId") Long departmentId,
+                                                  @Param("officerId") Long officerId,
+                                                  Pageable pageable);
+
     /** SRS 15.1 anti-spam control: "max 10 complaints per rolling 24-hour period". */
     long countByCitizen_UserIdAndCreatedAtAfter(Long citizenId, LocalDateTime since);
 

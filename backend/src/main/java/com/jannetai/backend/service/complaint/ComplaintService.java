@@ -103,6 +103,14 @@ public class ComplaintService {
     private final ReputationService reputationService;                         // audit GAP-029
     private final DescriptionProfanityFilter descriptionProfanityFilter;       // audit GAP-054: SRS 17.2
 
+    /** V36 assignment history - setter-injected so the explicit test constructor is unchanged. */
+    private AssignmentHistoryService assignmentHistory;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setAssignmentHistory(AssignmentHistoryService assignmentHistory) {
+        this.assignmentHistory = assignmentHistory;
+    }
+
     @Value("${app.complaint.max-submissions-per-24h}")
     private int maxSubmissionsPer24h;
 
@@ -943,6 +951,9 @@ public class ComplaintService {
         String note = request.note() == null || request.note().isBlank() ? null : request.note().strip();
         String reason = note == null ? defaultReason : defaultReason + ": " + note;
         recordHistory(complaint, previous, next, staff, ComplaintStateMachine.actorTypeFor(staff.getRole()), reason);
+        if (assignmentHistory != null) {
+            assignmentHistory.record(complaint, department, officer, "MANUAL", null, reason, staff);
+        }
 
         auditService.record(staff, "COMPLAINT_MANUALLY_REASSIGNED", "COMPLAINT", complaint.getComplaintId(),
                 "{\"department_id\":" + department.getDepartmentId()

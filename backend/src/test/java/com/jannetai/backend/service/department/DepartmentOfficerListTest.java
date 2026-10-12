@@ -70,4 +70,21 @@ class DepartmentOfficerListTest {
         assertThat(officers).extracting(AssignableOfficerResponse::availability).containsExactly("AVAILABLE", "ON_LEAVE");
         assertThat(officers).extracting(AssignableOfficerResponse::openComplaints).containsExactly(3L, 0L);
     }
+
+    @Test
+    void thePickerShowsTheAreaEachOfficerWorksFor() {
+        Department dept = Department.builder().departmentId(1L).name("Public Works").build();
+        User head = User.builder().userId(10L).role(Role.DEPARTMENT_HEAD).department(dept).build();
+        User asha = User.builder().userId(20L).fullName("Asha").role(Role.GOVERNMENT_OFFICER)
+                .status(UserStatus.ACTIVE).department(dept)
+                .ward(com.jannetai.backend.entity.Ward.builder().wardId(7L).name("Ward 91 - Kavi Nagar").build()).build();
+        User bala = User.builder().userId(21L).fullName("Bala").role(Role.GOVERNMENT_OFFICER)
+                .status(UserStatus.ACTIVE).department(dept).build();
+        when(userRepository.findByRoleAndDepartment_DepartmentIdOrderByFullNameAsc(Role.GOVERNMENT_OFFICER, 1L))
+                .thenReturn(List.of(asha, bala));
+
+        List<AssignableOfficerResponse> officers = service.listOfficers(head, 1L);
+
+        assertThat(officers).extracting(AssignableOfficerResponse::area).containsExactly("Ward 91 - Kavi Nagar", null);
+    }
 }

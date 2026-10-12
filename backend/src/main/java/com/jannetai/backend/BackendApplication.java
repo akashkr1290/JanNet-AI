@@ -1,6 +1,7 @@
 package com.jannetai.backend;
 
 import com.jannetai.backend.config.AiServiceProperties;
+import com.jannetai.backend.config.GoogleMapsProperties;
 import com.jannetai.backend.config.JwtProperties;
 import com.jannetai.backend.config.NotificationProperties;
 import org.springframework.boot.SpringApplication;
@@ -27,7 +28,8 @@ import java.util.TimeZone;
  * Module's real email/SMS gateway configuration (SRS 15.13).
  */
 @SpringBootApplication
-@EnableConfigurationProperties({JwtProperties.class, AiServiceProperties.class, NotificationProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, AiServiceProperties.class, NotificationProperties.class,
+        GoogleMapsProperties.class})
 @EnableScheduling
 public class BackendApplication {
 

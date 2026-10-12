@@ -14,6 +14,14 @@ import java.util.List;
  * citizen confirmation, review flags and the optional submission distance
  * (never the citizen's own coordinates). All new fields are null/false/empty
  * for complaints created before V33.
+ *
+ * V34 adds the real area for staff and the citizen: PIN, landmark,
+ * locality, district, Gram Panchayat / urban body, village and how the ward
+ * was found ({@code wardMatch}). Null for complaints created before V34.
+ *
+ * V36 adds whether that area is proven: {@code locationVerificationStatus}
+ * (VERIFIED_BOUNDARY / REQUIRES_VERIFICATION / STAFF_VERIFIED), the
+ * {@code verificationReason} and a {@code suggestedWard*} staff may confirm.
  */
 public record LocationResponse(
         Long locationId,
@@ -30,7 +38,23 @@ public record LocationResponse(
         BigDecimal detectedLongitude,
         Boolean confirmedByCitizen,
         List<String> flags,
-        BigDecimal submissionDistanceMeters
+        BigDecimal submissionDistanceMeters,
+        String pincode,
+        String landmark,
+        String locality,
+        Integer districtCode,
+        String districtName,
+        Integer localBodyCode,
+        String localBodyName,
+        String localBodyType,
+        Integer villageCode,
+        String villageName,
+        String wardNumber,
+        String wardMatch,
+        String locationVerificationStatus,
+        String verificationReason,
+        Long suggestedWardId,
+        String suggestedWardName
 ) {
     public static LocationResponse from(Location location) {
         return new LocationResponse(
@@ -48,7 +72,23 @@ public record LocationResponse(
                 location.getDetectedLongitude(),
                 Boolean.TRUE.equals(location.getConfirmedByCitizen()),
                 LocationFlags.split(location.getFlags()),
-                location.getSubmissionDistanceMeters()
+                location.getSubmissionDistanceMeters(),
+                location.getPincode(),
+                location.getLandmark(),
+                location.getLocality(),
+                location.getDistrictCode(),
+                location.getDistrict() != null ? location.getDistrict().getName() : null,
+                location.getLocalBodyCode(),
+                location.getLocalBody() != null ? location.getLocalBody().getName() : null,
+                location.getLocalBody() != null ? location.getLocalBody().getBodyType() : null,
+                location.getVillageCode(),
+                location.getVillage() != null ? location.getVillage().getName() : null,
+                location.getWard() != null ? location.getWard().getWardNumber() : null,
+                location.getWardMatch(),
+                location.getLocationVerificationStatus(),
+                location.getVerificationReason(),
+                location.getSuggestedWard() != null ? location.getSuggestedWard().getWardId() : null,
+                location.getSuggestedWard() != null ? location.getSuggestedWard().getName() : null
         );
     }
 }

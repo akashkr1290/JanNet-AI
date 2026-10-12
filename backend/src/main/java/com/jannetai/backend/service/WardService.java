@@ -21,9 +21,15 @@ public class WardService {
 
     private final WardRepository wardRepository;
 
+    /**
+     * The flat ward list (registration / profile pickers). V34: legacy wards
+     * only - wards loaded from LGD belong to a local body and are listed per
+     * body by GET /api/v1/geo/local-bodies/{code}/wards, otherwise this list
+     * would hold every ward of every served body.
+     */
     @Transactional(readOnly = true)
     public List<WardResponse> listActiveWards() {
-        return wardRepository.findByIsActiveTrueOrderByNameAsc().stream()
+        return wardRepository.findByLocalBodyCodeIsNullAndIsActiveTrueOrderByNameAsc().stream()
                 .map(WardResponse::from)
                 .toList();
     }

@@ -43,6 +43,72 @@ public class Location {
     @Column(name = "formatted_address", length = 300)
     private String formattedAddress;
 
+    /** V34: PIN code of the incident point (Google address, or the citizen's manual PIN). */
+    @Column(name = "pincode", length = 6, columnDefinition = "CHAR(6)")
+    private String pincode;
+
+    /** V34: landmark / place name, e.g. "Republic Crossing" (search result or Google place). */
+    @Column(name = "landmark", length = 150)
+    private String landmark;
+
+    /** V34: colony / sector / mohalla from Google's address. */
+    @Column(name = "locality", length = 150)
+    private String locality;
+
+    /**
+     * V34: LGD area codes resolved by LocationService (from the app's
+     * confirmed choice, or AreaResolver). The read-only associations below
+     * share these columns and only serve names for display (LocationResponse).
+     */
+    @Column(name = "state_code", columnDefinition = "INT UNSIGNED")
+    private Integer stateCode;
+
+    @Column(name = "district_code", columnDefinition = "INT UNSIGNED")
+    private Integer districtCode;
+
+    @Column(name = "local_body_code", columnDefinition = "INT UNSIGNED")
+    private Integer localBodyCode;
+
+    @Column(name = "village_code", columnDefinition = "INT UNSIGNED")
+    private Integer villageCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "district_code", insertable = false, updatable = false)
+    private GeoDistrict district;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "local_body_code", insertable = false, updatable = false)
+    private LocalBody localBody;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "village_code", insertable = false, updatable = false)
+    private GeoVillage village;
+
+    /**
+     * V34: how the ward was found - BOUNDARY (point inside a published ward
+     * map), CITIZEN (chosen in the app), STAFF (set in the verification
+     * queue), LEGACY; LOCALITY / NEAREST only on rows created before V36.
+     */
+    @Column(name = "ward_match", length = 12)
+    private String wardMatch;
+
+    /**
+     * V36: VERIFIED_BOUNDARY (area and ward proven by published boundaries),
+     * REQUIRES_VERIFICATION (staff must confirm - see verificationReason) or
+     * STAFF_VERIFIED. Set by LocationService#applyArea / #verifyByStaff.
+     */
+    @Column(name = "location_verification_status", length = 24)
+    private String locationVerificationStatus;
+
+    /** V36: why verification is needed, e.g. NO_WARD_BOUNDARY, WARD_CHOSEN_BY_CITIZEN (LocationService). */
+    @Column(name = "verification_reason", length = 40)
+    private String verificationReason;
+
+    /** V36: a likely ward when none could be proven (nearest ward / listed colony) - shown to staff, never routed on. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "suggested_ward_id")
+    private Ward suggestedWard;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 20)
     private LocationSource source;

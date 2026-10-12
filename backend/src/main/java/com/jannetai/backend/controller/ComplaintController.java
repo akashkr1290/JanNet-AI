@@ -8,6 +8,7 @@ import com.jannetai.backend.dto.complaint.BudgetRejectionRequest;
 import com.jannetai.backend.dto.complaint.ClassificationOverrideRequest;
 import com.jannetai.backend.dto.complaint.ComplaintResponse;
 import com.jannetai.backend.dto.complaint.ComplaintSummaryResponse;
+import com.jannetai.backend.dto.complaint.IncidentArea;
 import com.jannetai.backend.dto.complaint.IncidentLocationRequest;
 import com.jannetai.backend.dto.complaint.InternalNoteRequest;
 import com.jannetai.backend.dto.complaint.RatingRequest;
@@ -92,14 +93,24 @@ public class ComplaintController {
                                      @RequestParam(required = false) String photoCapturedAt,
                                      @RequestParam(required = false) BigDecimal detectedLatitude,
                                      @RequestParam(required = false) BigDecimal detectedLongitude,
-                                     @RequestParam(required = false) Double submissionDistanceMeters) {
+                                     @RequestParam(required = false) Double submissionDistanceMeters,
+                                     // V34 (optional): address + LGD area the citizen confirmed in the app,
+                                     // from GET /api/v1/geo/reverse | places | pincodes (GeoController).
+                                     // Checked in LocationService#applyArea.
+                                     @RequestParam(required = false) String pincode,
+                                     @RequestParam(required = false) String landmark,
+                                     @RequestParam(required = false) String locality,
+                                     @RequestParam(required = false) String formattedAddress,
+                                     @RequestParam(required = false) Integer villageCode,
+                                     @RequestParam(required = false) Integer localBodyCode) {
         // Audit GAP-032 (SRS 21.3): an unusable photo is rejected (422, retake
         // prompt) BEFORE anything is stored.
         imageQualityGate.check(photo);
         ComplaintResponse created = complaintService.create(principal.getUser(), photo, description,
                 new IncidentLocationRequest(latitude, longitude, wardId, locationSource, locationConfirmed,
                         locationAccuracyMeters, photoCapturedAt, detectedLatitude, detectedLongitude,
-                        submissionDistanceMeters));
+                        submissionDistanceMeters,
+                        new IncidentArea(pincode, landmark, locality, formattedAddress, villageCode, localBodyCode)));
         boolean ranInline = aiProcessingDispatcher.submit(created.complaintId());
         return ranInline ? complaintService.getDetail(principal.getUser(), created.complaintId()) : created;
     }

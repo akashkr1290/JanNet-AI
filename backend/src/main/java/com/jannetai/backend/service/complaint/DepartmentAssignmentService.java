@@ -74,6 +74,14 @@ public class DepartmentAssignmentService {
     @Value("${app.department-assignment.fallback-department-name}")
     private String fallbackDepartmentName;
 
+    /** V36 assignment history; setter-injected so the existing constructor (and its tests) stay unchanged. */
+    private AssignmentHistoryService assignmentHistory;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setAssignmentHistory(AssignmentHistoryService assignmentHistory) {
+        this.assignmentHistory = assignmentHistory;
+    }
+
     /**
      * Routes a VERIFIED complaint to its department and alerts that
      * department's Department Head. The status stays VERIFIED; no officer is
@@ -87,7 +95,8 @@ public class DepartmentAssignmentService {
      */
     @Transactional
     public void routeToDepartment(Complaint complaint) {
-        Department department = resolveDepartmentOrNull(complaint);
+        Optional<RoutingRule> rule = routingRuleRepository.findCurrentActiveRule(complaint.getCategory());
+        Department department = resolveDepartmentOrNull(complaint, rule);
         if (department == null) {
             return; // audited in resolveDepartmentOrNull; nothing was written
         }
@@ -97,6 +106,13 @@ public class DepartmentAssignmentService {
 
         recordHistory(complaint, complaint.getStatus(), complaint.getStatus(),
                 "Routed to " + department.getName() + AWAITING_ASSIGNMENT_SUFFIX);
+        if (assignmentHistory != null) {
+            String method = rule.isEmpty() ? "FALLBACK"
+                    : rule.get().getDepartment().getDepartmentId().equals(department.getDepartmentId()) ? "RULE" : "AREA_RULE";
+            assignmentHistory.record(complaint, department, null, method,
+                    rule.map(RoutingRule::getRoutingRuleId).orElse(null),
+                    "Category " + complaint.getCategory() + routedAreaText(complaint), null);
+        }
 
         auditService.record(null, "COMPLAINT_ROUTED_TO_DEPARTMENT", "COMPLAINT", complaint.getComplaintId(),
                 toJson(Map.of(
@@ -114,10 +130,11 @@ public class DepartmentAssignmentService {
      * an audit entry) when even the fallback is missing - a configuration
      * error, detected here without any exception crossing a transactional proxy.
      */
-    private Department resolveDepartmentOrNull(Complaint complaint) {
-        Optional<Department> department = routingRuleRepository.findCurrentActiveRule(complaint.getCategory())
+    private Department resolveDepartmentOrNull(Complaint complaint, Optional<RoutingRule> rule) {
+        Optional<Department> department = rule
                 .map(RoutingRule::getDepartment)
-                .or(() -> departmentRepository.findByNameAndIsActiveTrue(fallbackDepartmentName));
+                .or(() -> departmentRepository.findByNameAndIsActiveTrue(fallbackDepartmentName))
+                .map(d -> forArea(d, complaint));
         if (department.isEmpty()) {
             String message = "No active routing rule matched and the configured fallback department ('"
                     + fallbackDepartmentName + "') does not exist - check "
@@ -128,6 +145,38 @@ public class DepartmentAssignmentService {
             return null;
         }
         return department.get();
+    }
+
+    /**
+     * V34 area routing: routing rules name a department TYPE (the global
+     * "Public Works"); when the complaint's local body or district has its own
+     * active department of that name (Admin -> Departments, area chosen with
+     * the location picker), the complaint goes there instead. Most specific
+     * wins: local body, then district, then the global department.
+     */
+    Department forArea(Department ruleDepartment, Complaint complaint) {
+        if (complaint.getLocation() == null) {
+            return ruleDepartment;
+        }
+        Integer body = complaint.getLocation().getLocalBodyCode();
+        Integer district = complaint.getLocation().getDistrictCode();
+        String name = ruleDepartment.getName();
+        Optional<Department> local = body == null ? Optional.<Department>empty()
+                : departmentRepository.findFirstByNameAndLocalBodyCodeAndIsActiveTrue(name, body);
+        return local
+                .or(() -> district == null ? Optional.<Department>empty()
+                        : departmentRepository.findFirstByNameAndDistrictCodeAndLocalBodyCodeIsNullAndIsActiveTrue(name, district))
+                .orElse(ruleDepartment);
+    }
+
+    /** " in Ghaziabad (local body 248988)" - for the assignment history reason. */
+    private static String routedAreaText(Complaint complaint) {
+        if (complaint.getLocation() == null || complaint.getLocation().getLocalBodyCode() == null) {
+            return " (no local body known - global department)";
+        }
+        String status = complaint.getLocation().getLocationVerificationStatus();
+        return " in local body " + complaint.getLocation().getLocalBodyCode()
+                + ("REQUIRES_VERIFICATION".equals(status) ? " - location needs verification" : "");
     }
 
     private void recordHistory(Complaint complaint, ComplaintStatus previous, ComplaintStatus next, String reason) {
