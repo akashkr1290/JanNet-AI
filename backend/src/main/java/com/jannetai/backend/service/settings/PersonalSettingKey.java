@@ -27,8 +27,12 @@ import java.util.Set;
  */
 public enum PersonalSettingKey {
 
-    /** SRS 15.15: "language ... preferences". Pilot scope is English/Hindi (SRS 15.1 Dependencies). */
-    LANGUAGE("personal_language", Set.of("EN", "HI"), null),
+    /**
+     * SRS 15.15: "language ... preferences". The app screens are available in English, Hindi, Marathi,
+     * Bengali, Tamil, Telugu and Kannada. Notification texts exist in English and Hindi only; every
+     * other language receives the English text (NotificationTemplates.normaliseLanguage).
+     */
+    LANGUAGE("personal_language", Set.of("EN", "HI", "MR", "BN", "TA", "TE", "KN"), null),
 
     /** SRS 15.15: "accessibility preferences" - kept to a single boolean, no SRS detail beyond the phrase itself. */
     HIGH_CONTRAST_ENABLED("personal_high_contrast_enabled", Set.of("true", "false"), null),
