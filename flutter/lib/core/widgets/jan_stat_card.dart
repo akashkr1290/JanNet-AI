@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../theme/jan_tokens.dart';
+import 'jan_motion.dart';
+import '../l10n/tr_text.dart';
 
 /// Colour tones for statistic cards (reference: navy "Total", amber
 /// "Pending", blue "In Progress", teal "Resolved"). Every tone pairs its
@@ -83,7 +85,7 @@ class JanStatCard extends StatelessWidget {
       ),
     );
     return Semantics(
-      label: '$label: $value${caption != null ? ', $caption' : ''}',
+      label: '${trs(label)}: $value${caption != null ? ', $caption' : ''}',
       button: onTap != null,
       excludeSemantics: true,
       child: onTap == null
@@ -115,7 +117,13 @@ class JanStatGrid extends StatelessWidget {
       return Wrap(
         spacing: gap,
         runSpacing: gap,
-        children: [for (final c in children) SizedBox(width: itemWidth, child: c)],
+        children: [
+          for (var i = 0; i < children.length; i++)
+            SizedBox(
+              width: itemWidth,
+              child: JanReveal(delay: JanReveal.stagger(i, step: const Duration(milliseconds: 60)), child: children[i]),
+            ),
+        ],
       );
     });
   }

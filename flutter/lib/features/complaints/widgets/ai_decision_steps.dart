@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/theme/jan_tokens.dart';
 import '../models/complaint.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// The AI decision path as three steps: YOLO detection (with its threshold),
 /// Gemini verification, result (pilot request 2026-09-28).
@@ -40,7 +41,7 @@ class _StepRow extends StatelessWidget {
       AiStepState.skipped => (Icons.remove_circle_outline_rounded, JanColors.muted, 'skipped'),
     };
     return Semantics(
-      label: 'Step $number, ${step.title}, $state: ${step.detail}',
+      label: trs('Step $number, ${step.title}, $state: ${step.detail}'),
       excludeSemantics: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,7 +49,7 @@ class _StepRow extends StatelessWidget {
           Icon(icon, size: 18, color: color),
           const SizedBox(width: 6),
           Expanded(
-            child: Text.rich(
+            child: TextRich(
               TextSpan(children: [
                 TextSpan(
                   text: '${step.title}: ',

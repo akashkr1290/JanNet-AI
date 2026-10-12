@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/theme/jan_tokens.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Shared dashboard count tile (Patches 08/09). Semantics give screen readers
 /// one clear "label: value" announcement (Patch 46).
@@ -18,7 +19,7 @@ class StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: '$label: $value',
+      label: '${trs(label)}: $value',
       excludeSemantics: true,
       child: Container(
         width: 150,

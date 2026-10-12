@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../platform_status.dart';
 import '../theme/jan_tokens.dart';
 import 'jan_illustrations.dart';
 import 'jan_logo.dart';
 import 'jan_surfaces.dart';
+import '../l10n/tr_text.dart';
 
 /// One navigation destination in a role's home shell.
 class JanDestination {
@@ -133,8 +134,8 @@ class JanShell extends StatelessWidget {
           child: JanLogo(markSize: 30, fontSize: 20),
         ),
         actions: [
-          for (final a in actions) IconButton(onPressed: a.onPressed, icon: Icon(a.icon), tooltip: a.tooltip),
-          IconButton(onPressed: onLogout, icon: const Icon(Icons.logout_rounded), tooltip: 'Sign out'),
+          for (final a in actions) IconButton(onPressed: a.onPressed, icon: Icon(a.icon), tooltip: trs(a.tooltip)),
+          IconButton(onPressed: onLogout, icon: const Icon(Icons.logout_rounded), tooltip: trs('Sign out')),
           const SizedBox(width: 4),
         ],
       ),
@@ -188,7 +189,7 @@ class _WideTopBar extends StatelessWidget {
               child: Text(title, style: Theme.of(context).textTheme.titleLarge),
             ),
           ),
-          for (final a in actions) IconButton(onPressed: a.onPressed, icon: Icon(a.icon), tooltip: a.tooltip),
+          for (final a in actions) IconButton(onPressed: a.onPressed, icon: Icon(a.icon), tooltip: trs(a.tooltip)),
         ],
       ),
     );
@@ -308,7 +309,7 @@ class _RailItem extends StatelessWidget {
       child: Semantics(
         selected: selected,
         button: true,
-        label: destination.label,
+        label: trs(destination.label),
         excludeSemantics: true,
         child: Material(
           color: selected ? const Color(0x2E9CC5EC) : Colors.transparent,

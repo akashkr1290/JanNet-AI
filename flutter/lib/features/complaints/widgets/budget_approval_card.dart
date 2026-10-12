@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/api/api_exception.dart';
@@ -7,6 +7,7 @@ import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../complaints_api.dart';
 import '../models/complaint.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 15 (Sep 2026 strict recheck): estimated budget, approval
 /// status/approver/time, and [Approve]/[Reject] controls. The controls render
@@ -48,7 +49,7 @@ class _BudgetApprovalCardState extends State<BudgetApprovalCard> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Reject budget estimate'),
-        content: TextField(controller: controller, maxLength: 500, decoration: const InputDecoration(labelText: 'Reason (optional)')),
+        content: TextField(controller: controller, maxLength: 500, decoration: InputDecoration(labelText: trs('Reason (optional)'))),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reject')),

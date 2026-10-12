@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import '../theme/jan_tokens.dart';
+import '../l10n/tr_text.dart';
 
 /// Segmented one-time-code input (reference "Verify your number" screen).
 ///
@@ -121,7 +122,7 @@ class _JanOtpInputState extends State<JanOtpInput> {
                     autocorrect: false,
                     style: const TextStyle(color: Colors.transparent, fontSize: 1),
                     decoration: InputDecoration(
-                      labelText: widget.semanticLabel,
+                      labelText: trs(widget.semanticLabel),
                       filled: false,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -212,7 +213,7 @@ class JanPasswordStrength extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Semantics(
-                label: 'Password strength: $label',
+                label: trs('Password strength: $label'),
                 excludeSemantics: true,
                 child: Row(
                   children: [

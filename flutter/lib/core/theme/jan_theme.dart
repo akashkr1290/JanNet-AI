@@ -213,7 +213,7 @@ class JanTheme {
         selectedColor: JanColors.primaryLight,
         disabledColor: JanColors.surfaceAlt,
         side: BorderSide(color: border),
-        shape: const StadiumBorder(),
+        shape: const RoundedRectangleBorder(borderRadius: JanRadius.smAll),
         labelStyle: TextStyle(color: ink, fontSize: 13, fontWeight: FontWeight.w600),
         secondaryLabelStyle: TextStyle(color: primary, fontSize: 13, fontWeight: FontWeight.w700),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
