@@ -58,6 +58,9 @@ app:
     municipal-max-latitude: 37.1
     municipal-min-longitude: 68.0
     municipal-max-longitude: 97.5
+    # tests never call the public OpenStreetMap server
+    nominatim:
+      enabled: false
   complaint:
     max-submissions-per-24h: 10
     reopen-grace-period-days: 7
