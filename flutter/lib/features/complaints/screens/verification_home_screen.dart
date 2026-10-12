@@ -6,8 +6,10 @@ import '../../auth/screens/login_screen.dart';
 import '../../notifications/screens/notifications_screen.dart';
 import '../../settings/screens/personal_settings_screen.dart';
 import 'appeals_review_screen.dart';
+import 'location_check_screen.dart';
 import 'verification_queue_screen.dart';
 import '../../users/widgets/signed_in_identity.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patches 14/25/33 (Sep 2026 strict recheck): VERIFICATION_TEAM
 /// had no home route at all - resolveHomeScreen fell through to the CITIZEN
@@ -44,12 +46,12 @@ class _VerificationHomeScreenState extends State<VerificationHomeScreen> {
       actions: [
         JanShellAction(
           icon: Icons.notifications_outlined,
-          tooltip: 'Notifications',
+          tooltip: trs('Notifications'),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
         ),
         JanShellAction(
           icon: Icons.settings_outlined,
-          tooltip: 'Settings',
+          tooltip: trs('Settings'),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalSettingsScreen())),
         ),
       ],
@@ -69,6 +71,15 @@ class _VerificationHomeScreenState extends State<VerificationHomeScreen> {
           heading: 'Appeals',
           subheading: 'Citizen appeals against rejected complaints',
           builder: (_) => const AppealsReviewScreen(embedded: true),
+        ),
+        JanDestination(
+          // V36: complaints whose ward could not be proven by a ward map.
+          label: 'Location Check',
+          icon: Icons.wrong_location_outlined,
+          selectedIcon: Icons.wrong_location_rounded,
+          heading: 'Location Check',
+          subheading: 'Confirm the ward where no ward map could prove it',
+          builder: (_) => const LocationCheckScreen(embedded: true),
         ),
       ],
     );

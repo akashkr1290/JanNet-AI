@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/jan_tokens.dart';
@@ -10,6 +10,7 @@ import '../widgets/ai_decision_steps.dart';
 import '../widgets/category_visuals.dart';
 import '../widgets/detection_overlay_image.dart';
 import '../widgets/status_badge.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 25 (Sep 2026 audit): the actual "Human AI
 /// Verification Workflow" review screen the patch asked for - the
@@ -171,7 +172,7 @@ class _VerificationReviewScreenState extends State<VerificationReviewScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: _overrideCategory,
                   isExpanded: true,
-                  decoration: const InputDecoration(hintText: 'Category'),
+                  decoration: InputDecoration(hintText: trs('Category')),
                   items: _categories
                       .map((cat) => DropdownMenuItem(value: cat, child: Text(cat.replaceAll('_', ' '))))
                       .toList(),
@@ -182,7 +183,7 @@ class _VerificationReviewScreenState extends State<VerificationReviewScreen> {
                 TextField(
                   controller: _noteController,
                   maxLines: 2,
-                  decoration: const InputDecoration(hintText: 'Add a note for the audit trail'),
+                  decoration: InputDecoration(hintText: trs('Add a note for the audit trail')),
                 ),
                 const SizedBox(height: JanSpace.md),
                 FilledButton.icon(
@@ -201,7 +202,7 @@ class _VerificationReviewScreenState extends State<VerificationReviewScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: _rejectionReasonCode,
                   isExpanded: true,
-                  decoration: const InputDecoration(hintText: 'Select a reason'),
+                  decoration: InputDecoration(hintText: trs('Select a reason')),
                   items: _rejectionReasons
                       .map((r) => DropdownMenuItem(value: r, child: Text(r.replaceAll('_', ' '))))
                       .toList(),
@@ -288,7 +289,7 @@ class _VerificationReviewScreenState extends State<VerificationReviewScreen> {
                 value: (ai.confidence! / 100).clamp(0.0, 1.0),
                 minHeight: 8,
                 backgroundColor: JanColors.divider,
-                semanticsLabel: 'AI confidence',
+                semanticsLabel: trs('AI confidence'),
                 semanticsValue: '${ai.confidence!.toStringAsFixed(0)}%',
               ),
             ),

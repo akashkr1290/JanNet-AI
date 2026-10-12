@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/jan_tokens.dart';
@@ -6,6 +6,7 @@ import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../admin_api.dart';
 import '../models/audit_log_entry.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS 15.11 "audit log review" / 16.3 Admin Audit Log screen. Read-only
 /// (AdminAuditLogController has no mutating endpoint at all - see its
@@ -61,8 +62,8 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
                 Expanded(
                   child: TextField(
                     controller: _entityTypeController,
-                    decoration: const InputDecoration(
-                      hintText: 'Entity type (e.g. USER)',
+                    decoration: InputDecoration(
+                      hintText: trs('Entity type (e.g. USER)'),
                       isDense: true,
                       prefixIcon: Icon(Icons.category_outlined, size: 20),
                     ),
@@ -73,8 +74,8 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
                 Expanded(
                   child: TextField(
                     controller: _actionTypeController,
-                    decoration: const InputDecoration(
-                      hintText: 'Action type',
+                    decoration: InputDecoration(
+                      hintText: trs('Action type'),
                       isDense: true,
                       prefixIcon: Icon(Icons.bolt_outlined, size: 20),
                     ),
@@ -85,7 +86,7 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
                 IconButton.filled(
                   onPressed: _refresh,
                   icon: const Icon(Icons.filter_alt_outlined),
-                  tooltip: 'Apply filters',
+                  tooltip: trs('Apply filters'),
                 ),
               ],
             ),
@@ -97,7 +98,7 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const JanSkeletonList(semanticLabel: 'Loading audit logs');
+                return JanSkeletonList(semanticLabel: trs('Loading audit logs'));
               }
               if (snapshot.hasError || !snapshot.hasData) {
                 return JanErrorState.fromError(snapshot.error, fallback: 'Could not load audit logs.', onRetry: _refresh);

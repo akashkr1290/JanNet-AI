@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -19,6 +19,7 @@ import '../widgets/budget_approval_card.dart';
 import '../widgets/category_visuals.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/status_timeline.dart';
+import '../../../core/l10n/tr_text.dart';
 
 const _categories = [
   'POTHOLE',
@@ -151,6 +152,9 @@ class _OfficerComplaintDetailScreenState extends State<OfficerComplaintDetailScr
       context: context,
       builder: (_) => ReassignOfficerDialog(
         departmentId: ownDepartmentId,
+        complaintArea: c.location == null
+            ? null
+            : [c.location!.areaLine, c.location!.wardName].whereType<String>().where((e) => e.isNotEmpty).join(' · '),
         currentOfficerId: c.assignedOfficerId,
         onSubmit: (officerId, note) => ComplaintsApi.instance.reassign(
           complaintId: widget.complaintId,
@@ -222,7 +226,16 @@ class _OfficerComplaintDetailScreenState extends State<OfficerComplaintDetailScr
                             (c.location!.latitude != null
                                 ? '${c.location!.latitude!.toStringAsFixed(6)}, ${c.location!.longitude!.toStringAsFixed(6)}'
                                 : 'Unknown'),
-                        extra: c.location!.wardName,
+                        extra: [c.location!.areaLine, c.location!.wardName]
+                                .whereType<String>()
+                                .where((e) => e.isNotEmpty)
+                                .join(' · ')
+                                .isEmpty
+                            ? null
+                            : [c.location!.areaLine, c.location!.wardName]
+                                .whereType<String>()
+                                .where((e) => e.isNotEmpty)
+                                .join(' · '),
                       ),
                       // V33: incident-location check (map, source, flags).
                       const SizedBox(height: JanSpace.xs),
@@ -256,7 +269,7 @@ class _OfficerComplaintDetailScreenState extends State<OfficerComplaintDetailScr
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (_busy) ...[
-                      const LinearProgressIndicator(semanticsLabel: 'Working'),
+                      LinearProgressIndicator(semanticsLabel: trs('Working')),
                       const SizedBox(height: JanSpace.sm),
                     ],
                     if (c.awaitingOfficer) ...[
@@ -448,7 +461,7 @@ class _OfficerComplaintDetailScreenState extends State<OfficerComplaintDetailScr
 
   Widget _infoRow(IconData icon, String label, String value, {String? extra}) {
     return Semantics(
-      label: '$label: $value${extra != null ? ', $extra' : ''}',
+      label: '${trs(label)}: $value${extra != null ? ', $extra' : ''}',
       excludeSemantics: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -561,7 +574,7 @@ class _AddNoteFieldState extends State<_AddNoteField> {
             controller: _controller,
             maxLength: 1000,
             maxLines: 3,
-            decoration: const InputDecoration(labelText: 'Add an internal note'),
+            decoration: InputDecoration(labelText: trs('Add an internal note')),
           ),
         ),
         const SizedBox(width: 8),
@@ -570,7 +583,7 @@ class _AddNoteFieldState extends State<_AddNoteField> {
           child: IconButton.filled(
             onPressed: widget.busy ? null : _submit,
             icon: const Icon(Icons.send_rounded),
-            tooltip: 'Add note',
+            tooltip: trs('Add note'),
           ),
         ),
       ],
@@ -630,7 +643,8 @@ class _StatusUpdateSheetState extends State<_StatusUpdateSheet> {
   // application/octet-stream, which the backend's photo check rejects.
   Future<void> _pickPhoto() async {
     try {
-      final picked = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 85);
+      // V34: same size rule as citizen photos (<= 2048 px; quality 90 keeps it ~1-2 MB)
+      final picked = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 90, maxWidth: 2048, maxHeight: 2048);
       if (picked == null) return;
       final photo = await PickedPhoto.fromXFile(picked);
       if (!mounted) return;
@@ -701,7 +715,7 @@ class _StatusUpdateSheetState extends State<_StatusUpdateSheet> {
                 .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))
                 .toList(),
             onChanged: (v) => setState(() => _target = v ?? _target),
-            decoration: const InputDecoration(labelText: 'New status'),
+            decoration: InputDecoration(labelText: trs('New status')),
           ),
           if (_reasonRequired) ...[
             const SizedBox(height: 12),
@@ -711,7 +725,7 @@ class _StatusUpdateSheetState extends State<_StatusUpdateSheet> {
                   .map((r) => DropdownMenuItem(value: r, child: Text(r.replaceAll('_', ' '))))
                   .toList(),
               onChanged: (v) => setState(() => _reasonCode = v),
-              decoration: const InputDecoration(labelText: 'Rejection reason (required)'),
+              decoration: InputDecoration(labelText: trs('Rejection reason (required)')),
             ),
           ],
           const SizedBox(height: 12),
@@ -720,7 +734,7 @@ class _StatusUpdateSheetState extends State<_StatusUpdateSheet> {
             maxLength: 500,
             maxLines: 3,
             decoration: InputDecoration(
-              labelText: _noteRequired ? 'Note (required, min 10 characters)' : 'Note (optional)',
+              labelText: trs(_noteRequired ? 'Note (required, min 10 characters)' : 'Note (optional)'),
             ),
           ),
           if (_photoRequired) ...[
@@ -741,7 +755,7 @@ class _StatusUpdateSheetState extends State<_StatusUpdateSheet> {
                         width: 56,
                         height: 56,
                         fit: BoxFit.cover,
-                        semanticLabel: 'Selected after-photo',
+                        semanticLabel: trs('Selected after-photo'),
                       ),
                     )
                   else
@@ -848,7 +862,7 @@ class _ClassificationOverrideDialogState extends State<_ClassificationOverrideDi
               isExpanded: true,
               items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c.replaceAll('_', ' ')))).toList(),
               onChanged: (v) => setState(() => _category = v ?? _category),
-              decoration: const InputDecoration(labelText: 'Category'),
+              decoration: InputDecoration(labelText: trs('Category')),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -856,15 +870,15 @@ class _ClassificationOverrideDialogState extends State<_ClassificationOverrideDi
               isExpanded: true,
               items: _severities.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (v) => setState(() => _severity = v),
-              decoration: const InputDecoration(labelText: 'Severity'),
+              decoration: InputDecoration(labelText: trs('Severity')),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _reasonController,
               maxLength: 500,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Justification (required, min 10 characters)',
+              decoration: InputDecoration(
+                labelText: trs('Justification (required, min 10 characters)'),
               ),
             ),
             if (_error != null) ...[

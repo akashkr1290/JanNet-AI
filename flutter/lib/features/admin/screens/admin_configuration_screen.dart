@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/platform_status.dart';
@@ -8,6 +8,8 @@ import '../../../core/widgets/jan_surfaces.dart';
 import '../admin_api.dart';
 import '../models/admin_configuration.dart';
 import '../models/admin_user.dart';
+import '../widgets/staff_area_picker.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Admin "Setup" destination (SRS 15.11 configuration surface):
 ///  * Departments - create / rename / describe / assign head / activate (audit GAP-020);
@@ -24,7 +26,7 @@ class AdminConfigurationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DefaultTabController(
+    return DefaultTabController(
       length: 5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -33,11 +35,11 @@ class AdminConfigurationScreen extends StatelessWidget {
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: [
-              Tab(text: 'Departments'),
-              Tab(text: 'Wards'),
-              Tab(text: 'Sensitive zones'),
-              Tab(text: 'Jurisdiction review'),
-              Tab(text: 'Maintenance'),
+              Tab(text: trs('Departments')),
+              Tab(text: trs('Wards')),
+              Tab(text: trs('Sensitive zones')),
+              Tab(text: trs('Jurisdiction review')),
+              Tab(text: trs('Maintenance')),
             ],
           ),
           Expanded(
@@ -177,6 +179,7 @@ class _DepartmentsTab extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           title: Text(d.name, style: const TextStyle(fontWeight: FontWeight.w800, color: JanColors.navy)),
           subtitle: Text([
+            'Area: ${d.areaLabel}',
             if (d.description != null) d.description!,
             d.headUserId != null ? 'Head: user #${d.headUserId}' : 'No head assigned',
             if (!d.isActive) 'Inactive',
@@ -184,7 +187,7 @@ class _DepartmentsTab extends StatelessWidget {
           isThreeLine: d.description != null,
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
             IconButton(
-              tooltip: 'Edit',
+              tooltip: trs('Edit'),
               icon: const Icon(Icons.edit_outlined),
               onPressed: () async {
                 if (await _editDepartment(context, d)) reload();
@@ -201,6 +204,9 @@ class _DepartmentsTab extends StatelessWidget {
     final name = TextEditingController(text: existing?.name ?? '');
     final description = TextEditingController(text: existing?.description ?? '');
     int? headUserId = existing?.headUserId;
+    // V34: area served. Kept as is unless Admin picks a new one.
+    var area = StaffArea.none;
+    var changeArea = existing == null;
     // Only an ACTIVE department head already belonging to this department can be head (server rule).
     final heads = existing == null
         ? Future.value(<AdminUser>[])
@@ -212,12 +218,22 @@ class _DepartmentsTab extends StatelessWidget {
           title: Text(existing == null ? 'New department' : 'Edit department'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: name, maxLength: 100, decoration: const InputDecoration(labelText: 'Name')),
+              TextField(controller: name, maxLength: 100, decoration: InputDecoration(labelText: trs('Name'))),
               TextField(
                 controller: description,
                 maxLength: 300,
-                decoration: const InputDecoration(labelText: 'Description (optional)'),
+                decoration: InputDecoration(labelText: trs('Description (optional)')),
               ),
+              if (!changeArea)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Area: ${existing!.areaLabel}'),
+                  trailing: TextButton(onPressed: () => setDialogState(() => changeArea = true), child: const Text('Change')),
+                )
+              else
+                StaffAreaPicker(value: area, showWard: false, onChanged: (a) => setDialogState(() => area = a)),
+              const Text('Leave the area empty for a department that serves every area. Complaints from an area go to '
+                  'its own department of the same name when one exists.', style: TextStyle(color: JanColors.muted, fontSize: 12.5)),
               if (existing != null)
                 FutureBuilder<List<AdminUser>>(
                   future: heads,
@@ -226,7 +242,7 @@ class _DepartmentsTab extends StatelessWidget {
                     final ids = users.map((u) => u.userId).toSet();
                     return DropdownButtonFormField<int?>(
                       value: ids.contains(headUserId) ? headUserId : null,
-                      decoration: const InputDecoration(labelText: 'Department head'),
+                      decoration: InputDecoration(labelText: trs('Department head')),
                       items: [
                         const DropdownMenuItem<int?>(value: null, child: Text('None')),
                         for (final u in users) DropdownMenuItem<int?>(value: u.userId, child: Text(u.fullName)),
@@ -250,6 +266,8 @@ class _DepartmentsTab extends StatelessWidget {
                     name: name.text.trim(),
                     description: description.text.trim(),
                     headUserId: existing == null ? null : headUserId,
+                    districtCode: changeArea ? area.district?.code : existing?.districtCode,
+                    localBodyCode: changeArea ? area.body?.code : existing?.localBodyCode,
                   );
                   if (dialogContext.mounted) Navigator.of(dialogContext).pop(true);
                 } catch (e) {
@@ -295,7 +313,7 @@ class _WardsTab extends StatelessWidget {
           ].join(' · ')),
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
             IconButton(
-              tooltip: 'Edit',
+              tooltip: trs('Edit'),
               icon: const Icon(Icons.edit_outlined),
               onPressed: () async {
                 if (await _editWard(context, w)) reload();
@@ -311,50 +329,62 @@ class _WardsTab extends StatelessWidget {
   static Future<bool> _editWard(BuildContext context, AdminWard? existing) async {
     final name = TextEditingController(text: existing?.name ?? '');
     final code = TextEditingController(text: existing?.code ?? '');
+    final number = TextEditingController(text: existing?.wardNumber ?? '');
     final boundary = TextEditingController(text: existing?.boundaryGeojson ?? '');
+    // V34: the ward's Gram Panchayat / Nagar Nigam (a ward never moves to another body)
+    var area = StaffArea.none;
     final saved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(existing == null ? 'New ward' : 'Edit ward'),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: name, maxLength: 150, decoration: const InputDecoration(labelText: 'Name')),
-              TextField(controller: code, maxLength: 30, decoration: const InputDecoration(labelText: 'Code (optional)')),
-              TextField(
-                controller: boundary,
-                minLines: 4,
-                maxLines: 10,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                decoration: const InputDecoration(
-                  labelText: 'Boundary GeoJSON (optional)',
-                  helperText: 'Leave empty for no boundary. Saving replaces the previous boundary.',
-                  alignLabelWithHint: true,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(existing == null ? 'New ward' : 'Edit ward'),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                if (existing?.localBodyCode == null)
+                  StaffAreaPicker(value: area, showWard: false, onChanged: (a) => setDialogState(() => area = a))
+                else
+                  const ListTile(contentPadding: EdgeInsets.zero, title: Text('Local body is fixed for an existing ward')),
+                TextField(controller: name, maxLength: 150, decoration: InputDecoration(labelText: trs('Name'))),
+                TextField(controller: number, maxLength: 20, decoration: InputDecoration(labelText: trs('Ward number'))),
+                TextField(controller: code, maxLength: 30, decoration: InputDecoration(labelText: trs('Code (optional)'))),
+                TextField(
+                  controller: boundary,
+                  minLines: 4,
+                  maxLines: 10,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  decoration: InputDecoration(
+                    labelText: trs('Boundary GeoJSON (optional)'),
+                    helperText: trs('Leave empty for no boundary. Saving replaces the previous boundary.'),
+                    alignLabelWithHint: true,
+                  ),
                 ),
-              ),
-            ]),
+              ]),
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  await AdminApi.instance.saveWard(
+                    wardId: existing?.wardId,
+                    name: name.text.trim(),
+                    code: code.text.trim(),
+                    boundaryGeojson: boundary.text,
+                    localBodyCode: existing?.localBodyCode ?? area.body?.code,
+                    wardNumber: number.text.trim(),
+                  );
+                  if (dialogContext.mounted) Navigator.of(dialogContext).pop(true);
+                } catch (e) {
+                  if (dialogContext.mounted) _showError(dialogContext, e);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              try {
-                await AdminApi.instance.saveWard(
-                  wardId: existing?.wardId,
-                  name: name.text.trim(),
-                  code: code.text.trim(),
-                  boundaryGeojson: boundary.text,
-                );
-                if (dialogContext.mounted) Navigator.of(dialogContext).pop(true);
-              } catch (e) {
-                if (dialogContext.mounted) _showError(dialogContext, e);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
     return saved ?? false;
@@ -405,10 +435,10 @@ class _ZonesTab extends StatelessWidget {
           title: const Text('New sensitive zone'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: name, maxLength: 150, decoration: const InputDecoration(labelText: 'Name')),
+              TextField(controller: name, maxLength: 150, decoration: InputDecoration(labelText: trs('Name'))),
               DropdownButtonFormField<String>(
                 value: type,
-                decoration: const InputDecoration(labelText: 'Type'),
+                decoration: InputDecoration(labelText: trs('Type')),
                 items: sensitiveZoneTypeLabels.entries
                     .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
                     .toList(),
@@ -417,17 +447,17 @@ class _ZonesTab extends StatelessWidget {
               TextField(
                 controller: lat,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                decoration: const InputDecoration(labelText: 'Latitude'),
+                decoration: InputDecoration(labelText: trs('Latitude')),
               ),
               TextField(
                 controller: lng,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                decoration: const InputDecoration(labelText: 'Longitude'),
+                decoration: InputDecoration(labelText: trs('Longitude')),
               ),
               TextField(
                 controller: radius,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Radius (metres)'),
+                decoration: InputDecoration(labelText: trs('Radius (metres)')),
               ),
             ]),
           ),
@@ -598,12 +628,12 @@ class _MaintenanceTabState extends State<_MaintenanceTab> {
             TextField(
               controller: _message,
               maxLength: 200,
-              decoration: const InputDecoration(labelText: 'Maintenance message (optional)'),
+              decoration: InputDecoration(labelText: trs('Maintenance message (optional)')),
             ),
             TextField(
               controller: _retry,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Ask clients to retry after (minutes, 1-1440)'),
+              decoration: InputDecoration(labelText: trs('Ask clients to retry after (minutes, 1-1440)')),
             ),
           ]),
         ),
@@ -613,9 +643,9 @@ class _MaintenanceTabState extends State<_MaintenanceTab> {
             controller: _announcement,
             maxLength: 200,
             maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Announcement banner (optional)',
-              helperText: 'Shown to everyone at the top of the app. Leave empty to remove it.',
+            decoration: InputDecoration(
+              labelText: trs('Announcement banner (optional)'),
+              helperText: trs('Shown to everyone at the top of the app. Leave empty to remove it.'),
             ),
           ),
         ),

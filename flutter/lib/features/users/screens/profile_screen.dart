@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/jan_tokens.dart';
@@ -9,6 +9,7 @@ import '../../../core/widgets/jan_surfaces.dart';
 import '../../wards/models/ward.dart';
 import '../../wards/wards_api.dart';
 import '../user_api.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Post-UI gap fix: "My Profile" - SRS 15.1 (Citizen Module) lists
 /// "registration and profile management" and "reputation score display".
@@ -253,7 +254,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (isCitizen && p.reputationScore != null) ...[
             const SizedBox(height: JanSpace.md),
             Semantics(
-              label: 'Reputation score: ${p.reputationScore}',
+              label: trs('Reputation score: ${p.reputationScore}'),
               excludeSemantics: true,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: JanSpace.sm, vertical: JanSpace.xs),
@@ -333,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _readOnlyRow(IconData icon, String label, String value) {
     return Semantics(
-      label: '$label: $value',
+      label: '${trs(label)}: $value',
       excludeSemantics: true,
       child: Row(
         children: [

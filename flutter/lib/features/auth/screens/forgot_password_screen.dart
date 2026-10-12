@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/widgets/error_text.dart';
 import '../../../core/theme/jan_tokens.dart';
@@ -7,6 +7,7 @@ import '../widgets/auth_layout.dart';
 import '../../../core/api/api_exception.dart';
 import '../auth_api.dart';
 import 'reset_password_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS Screen 16.1 "Forgot Password" button - Phase 17. Mobile-number-only
 /// (matches ForgotPasswordRequest exactly; the backend's response is
@@ -79,8 +80,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             onSubmitted: (_) {
               if (!_loading) _submit();
             },
-            decoration: const InputDecoration(
-              hintText: '10-digit number',
+            decoration: InputDecoration(
+              hintText: trs('10-digit number'),
               prefixIcon: Icon(Icons.phone_iphone_rounded),
               prefixText: '+91  ',
             ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/l10n/app_strings.dart';
@@ -13,6 +13,7 @@ import '../../complaints/widgets/category_visuals.dart';
 import '../../complaints/widgets/status_badge.dart';
 import '../../users/user_api.dart';
 import '../personal_dashboard_api.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 08 citizen dashboard - counts by status plus the five
 /// most recent complaints with status, AI classification status, priority
@@ -268,7 +269,7 @@ class _RecentComplaintCard extends StatelessWidget {
     final created = complaint.createdAt;
     return JanCard(
       onTap: onTap,
-      semanticLabel: '${category.label} complaint ${complaint.referenceNumber}, open details',
+      semanticLabel: trs('${category.label} complaint ${complaint.referenceNumber}, open details'),
       padding: const EdgeInsets.all(JanSpace.sm),
       child: Row(
         children: [

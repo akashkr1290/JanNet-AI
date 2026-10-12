@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart';
 
 import '../../../core/api/api_exception.dart';
@@ -7,6 +7,7 @@ import '../location/incident_location.dart';
 import '../location/incident_map.dart';
 import '../models/complaint.dart';
 import '../models/complaint_status.dart';
+import '../models/location_check.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../widgets/ai_decision_steps.dart';
 import '../widgets/detection_overlay_image.dart';
@@ -16,6 +17,7 @@ import '../widgets/status_timeline.dart';
 import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Full detail + status-history timeline (SRS 15.1 tracking; status_history
 /// is exactly ComplaintService.toResponse's statusHistory list).
@@ -36,6 +38,8 @@ class ComplaintDetailScreen extends StatefulWidget {
 
 class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   late Future<ComplaintDetail> _future;
+  // V36: GET /complaints/{id}/assignment - department + routing history.
+  late Future<ComplaintAssignment> _assignment;
   bool _reopening = false;
   bool _confirming = false;
   bool _submittingRating = false;
@@ -50,6 +54,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   void initState() {
     super.initState();
     _future = ComplaintsApi.instance.getDetail(widget.complaintId);
+    _assignment = ComplaintsApi.instance.assignment(widget.complaintId);
   }
 
   @override
@@ -62,6 +67,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   Future<void> _refresh() async {
     setState(() {
       _future = ComplaintsApi.instance.getDetail(widget.complaintId);
+      _assignment = ComplaintsApi.instance.assignment(widget.complaintId);
       _ratingLoaded = false;
     });
     await _future;
@@ -94,7 +100,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           controller: reasonController,
           maxLength: 200,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'What is still wrong? (optional)'),
+          decoration: InputDecoration(labelText: trs('What is still wrong? (optional)')),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -225,6 +231,8 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
             _budgetSection(c),
           ];
           final progress = <Widget>[
+            const JanSectionHeader(title: 'Who Is Handling It'),
+            _assignmentCard(),
             const JanSectionHeader(title: 'Status Timeline'),
             StatusTimeline(history: c.statusHistory),
             JanSectionHeader(title: 'Photos (${c.images.length})'),
@@ -344,7 +352,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
     final index = c.images.indexOf(image);
     return Semantics(
       button: true,
-      label: 'Complaint photo. Open full screen',
+      label: trs('Complaint photo. Open full screen'),
       excludeSemantics: true,
       child: JanCard(
         padding: EdgeInsets.zero,
@@ -397,6 +405,51 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
     );
   }
 
+  /// V36 assignment status: the department this complaint is routed to and,
+  /// only when an officer of this system is really assigned, that fact (the
+  /// backend leaves officer names out for citizens). Never claims a real
+  /// government official on its own (spec 2026-10-11).
+  Widget _assignmentCard() {
+    return FutureBuilder<ComplaintAssignment>(
+      future: _assignment,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const JanCard(child: LinearProgressIndicator());
+        }
+        if (snap.hasError || snap.data == null) {
+          return const JanCard(
+            child: Text('Assignment details are not available right now.', style: TextStyle(color: JanColors.muted)),
+          );
+        }
+        final a = snap.data!;
+        final where = [a.localBodyName, a.wardName].whereType<String>().where((e) => e.isNotEmpty).join(' · ');
+        final String who;
+        if (a.departmentName == null) {
+          who = 'Waiting for the office to choose the department';
+        } else if (a.officerAssigned) {
+          who = a.officerName != null
+              ? '${a.departmentName} - ${a.officerName}'
+              : 'An officer of ${a.departmentName} is handling it';
+        } else {
+          who = '${a.departmentName} - waiting for an officer';
+        }
+        return JanCard(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _infoRow(Icons.apartment_rounded, 'Department', who),
+            if (where.isNotEmpty) _infoRow(Icons.map_outlined, 'Area', where),
+            if (a.locationVerificationStatus == 'REQUIRES_VERIFICATION')
+              _infoRow(Icons.manage_search_rounded, 'Location', 'The office will confirm the exact ward'),
+            if (a.history.length > 1) ...[
+              const SizedBox(height: JanSpace.xs),
+              Text('Moved ${a.history.length - 1} time(s): ${a.history.map((h) => h.departmentName ?? '-').join(' → ')}',
+                  style: const TextStyle(color: JanColors.muted, fontSize: 12.5)),
+            ],
+          ]),
+        );
+      },
+    );
+  }
+
   Widget _infoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: JanSpace.sm),
@@ -406,7 +459,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           Icon(icon, size: 20, color: JanColors.navy),
           const SizedBox(width: JanSpace.sm),
           Expanded(
-            child: Text.rich(
+            child: TextRich(
               TextSpan(children: [
                 TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w800, color: JanColors.navy)),
                 TextSpan(text: value),
@@ -421,6 +474,9 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
 
   String? _locationText(ComplaintLocation? l) {
     if (l == null) return null;
+    // V34: village / Gram Panchayat or Nagar Nigam / ward in words first
+    final area = l.areaLine;
+    if (area != null) return l.wardName != null ? '$area · ${l.wardName}' : area;
     if (l.formattedAddress != null && l.formattedAddress!.isNotEmpty) return l.formattedAddress;
     if (l.wardName != null && l.wardName!.isNotEmpty) return l.wardName;
     if (l.latitude != null && l.longitude != null) {
@@ -439,6 +495,17 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           _infoRow(category.icon, 'Category', category.label),
           if (c.description != null && c.description!.isNotEmpty) _infoRow(Icons.notes_rounded, 'Description', c.description!),
           if (location != null) _infoRow(Icons.location_on_outlined, 'Location', location),
+          // V36: whether the ward is proven by the ward map or still to be checked
+          if (c.location?.locationVerificationStatus != null)
+            _infoRow(
+              c.location!.needsLocationCheck ? Icons.manage_search_rounded : Icons.verified_outlined,
+              'Ward',
+              switch (c.location!.locationVerificationStatus) {
+                'VERIFIED_BOUNDARY' => 'Confirmed from the ward map',
+                'STAFF_VERIFIED' => 'Confirmed by the office',
+                _ => 'The office will check the exact ward',
+              },
+            ),
           // V33: the problem location on a map (citizens see no technical details).
           if (c.location != null && c.location!.hasPoint && !c.location!.isApproximate)
             Padding(
@@ -496,7 +563,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           final kind = image.imageType == 'AFTER' ? 'After-resolution' : 'Complaint';
           return Semantics(
             button: image.viewUrl != null,
-            label: '$kind photo ${i + 1}. Open full screen',
+            label: trs('$kind photo ${i + 1}. Open full screen'),
             excludeSemantics: true,
             child: GestureDetector(
               onTap: image.viewUrl != null
@@ -759,7 +826,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
               const Text('Your rating', style: TextStyle(fontWeight: FontWeight.w800, color: JanColors.navy)),
               const SizedBox(height: 4),
               Semantics(
-                label: '$stars out of 5 stars',
+                label: trs('$stars out of 5 stars'),
                 excludeSemantics: true,
                 child: Row(
                   children: List.generate(
@@ -791,12 +858,12 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                 final starValue = i + 1;
                 final selected = _selectedRatingStars != null && starValue <= _selectedRatingStars!;
                 return Semantics(
-                  label: '$starValue star${starValue > 1 ? 's' : ''}',
+                  label: trs('$starValue star${starValue > 1 ? 's' : ''}'),
                   button: true,
                   selected: selected,
                   child: IconButton(
                     icon: Icon(selected ? Icons.star_rounded : Icons.star_border_rounded, color: JanColors.amber, size: 32),
-                    tooltip: '$starValue star${starValue == 1 ? '' : 's'}', // item 14: named for screen readers
+                    tooltip: trs('$starValue star${starValue == 1 ? '' : 's'}'), // item 14: named for screen readers
                     onPressed: () => setState(() => _selectedRatingStars = starValue),
                   ),
                 );
@@ -808,7 +875,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                 controller: _ratingCommentController,
                 maxLines: 2,
                 maxLength: 500,
-                decoration: const InputDecoration(labelText: 'Optional comment'),
+                decoration: InputDecoration(labelText: trs('Optional comment')),
               ),
               const SizedBox(height: JanSpace.xs),
               FilledButton(
@@ -842,7 +909,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
               controller: _appealReasonController,
               maxLines: 3,
               maxLength: 1000,
-              decoration: const InputDecoration(labelText: 'Why should this complaint be reconsidered?', alignLabelWithHint: true),
+              decoration: InputDecoration(labelText: trs('Why should this complaint be reconsidered?'), alignLabelWithHint: true),
             ),
             const SizedBox(height: JanSpace.xs),
             OutlinedButton.icon(
@@ -894,7 +961,7 @@ class _FullScreenPhotoViewer extends StatelessWidget {
                   ? DetectionOverlayImage(url: image.viewUrl!, boxes: detections)
                   : Image.network(
                 image.viewUrl!,
-                semanticLabel: 'Complaint photo, full screen',
+                semanticLabel: trs('Complaint photo, full screen'),
                 errorBuilder: (_, __, ___) =>
                     const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
               ),

@@ -8,6 +8,7 @@ import '../../notifications/screens/notifications_screen.dart';
 import '../../settings/screens/personal_settings_screen.dart';
 import 'officer_queue_screen.dart';
 import '../../users/widgets/signed_in_identity.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Officer home shell (GOVERNMENT_OFFICER; MAINTENANCE_TEAM was folded into it in V31, Sep
 /// 2026 strict recheck). Was a single "My Queue" view; Gap-backlog Patch 09
@@ -43,12 +44,12 @@ class _OfficerHomeScreenState extends State<OfficerHomeScreen> {
       actions: [
         JanShellAction(
           icon: Icons.notifications_outlined,
-          tooltip: 'Notifications',
+          tooltip: trs('Notifications'),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
         ),
         JanShellAction(
           icon: Icons.settings_outlined,
-          tooltip: 'Settings',
+          tooltip: trs('Settings'),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalSettingsScreen())),
         ),
       ],

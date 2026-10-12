@@ -46,10 +46,10 @@ class PlatformSetting {
 const Map<String, String> platformSettingLabels = {
   'ai_confidence_threshold': 'AI Confidence Threshold (%)',
   'duplicate_similarity_threshold': 'Duplicate Similarity Threshold (%)',
-  'sla_hours_critical': 'SLA Hours — Critical',
-  'sla_hours_high': 'SLA Hours — High',
-  'sla_hours_medium': 'SLA Hours — Medium',
-  'sla_hours_low': 'SLA Hours — Low',
+  'sla_hours_critical': 'SLA Hours: Critical',
+  'sla_hours_high': 'SLA Hours: High',
+  'sla_hours_medium': 'SLA Hours: Medium',
+  'sla_hours_low': 'SLA Hours: Low',
   'budget_approval_threshold_inr': 'Budget Approval Threshold (INR)',
   'citizen_confirmation_days': 'Citizen Confirmation Period (days)',
 };

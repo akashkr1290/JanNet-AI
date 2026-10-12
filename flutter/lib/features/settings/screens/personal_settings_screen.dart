@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import '../../../core/l10n/language_store.dart';
+import '../../../core/l10n/languages.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/api/api_exception.dart';
@@ -15,6 +17,7 @@ import '../settings_api.dart';
 import '../../users/screens/profile_screen.dart';
 import '../../users/user_api.dart';
 import 'privacy_policy_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS 15.15 (Personal Settings, Phase 15) - language, accessibility, and
 /// (officer-only) availability status, plus the notification channel
@@ -40,7 +43,6 @@ class _PersonalSettingsScreenState extends State<PersonalSettingsScreen> {
   /// Profile header only (name + role) - a failure simply hides it.
   UserProfile? _profile;
 
-  static const _languageLabels = {'EN': 'English', 'HI': 'Hindi'};
   static const _officerStatusLabels = {
     'AVAILABLE': 'Available',
     'BUSY': 'Busy',
@@ -87,7 +89,7 @@ class _PersonalSettingsScreenState extends State<PersonalSettingsScreen> {
   }
 
   Future<void> _updateLanguage(String value) {
-    AppStrings.currentLanguage.value = value;
+    LanguageStore.instance.choose(value);
     return _save(() => SettingsApi.instance.updateSettings(language: value));
   }
 
@@ -142,7 +144,7 @@ class _PersonalSettingsScreenState extends State<PersonalSettingsScreen> {
           TextField(
             controller: password,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Confirm with your password'),
+            decoration: InputDecoration(labelText: trs('Confirm with your password')),
           ),
         ]),
         actions: [
@@ -214,12 +216,12 @@ class _PersonalSettingsScreenState extends State<PersonalSettingsScreen> {
       maxWidth: 760,
       actions: [
         IconButton(
-          tooltip: 'Privacy & Data Use',
+          tooltip: trs('Privacy & Data Use'),
           icon: const Icon(Icons.privacy_tip_outlined),
           onPressed: _openPrivacy,
         ),
         IconButton(
-          tooltip: 'Terms of Use',
+          tooltip: trs('Terms of Use'),
           icon: const Icon(Icons.description_outlined),
           onPressed: _openTerms,
         ),
@@ -254,13 +256,13 @@ class _PersonalSettingsScreenState extends State<PersonalSettingsScreen> {
                           icon: Icons.translate_rounded,
                           title: 'Language',
                           trailing: DropdownButton<String>(
-                            value: settings.language,
+                            value: AppStrings.currentLanguage.value,
                             underline: const SizedBox.shrink(),
-                            items: _languageLabels.entries
-                                .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                            items: JanLanguage.all
+                                .map((l) => DropdownMenuItem(value: l.code, child: Text(l.nativeName)))
                                 .toList(),
                             onChanged: (value) {
-                              if (value != null && value != settings.language) _updateLanguage(value);
+                              if (value != null && value != AppStrings.currentLanguage.value) _updateLanguage(value);
                             },
                           ),
                         ),
@@ -375,11 +377,11 @@ class _PersonalSettingsScreenState extends State<PersonalSettingsScreen> {
                 ),
               ),
               if (_saving)
-                const Positioned(
+                Positioned(
                   left: 0,
                   right: 0,
                   top: 0,
-                  child: LinearProgressIndicator(semanticsLabel: 'Saving settings'),
+                  child: LinearProgressIndicator(semanticsLabel: trs('Saving settings')),
                 ),
             ],
           );
@@ -403,7 +405,7 @@ class _PersonalSettingsScreenState extends State<PersonalSettingsScreen> {
         elevated: false,
         onTap: _openProfile,
         child: Semantics(
-          label: '${profile.fullName}, ${_roleLabel(profile)}. Open My Profile',
+          label: trs('${profile.fullName}, ${_roleLabel(profile)}. Open My Profile'),
           excludeSemantics: true,
           child: Row(
             children: [

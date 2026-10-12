@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/jan_tokens.dart';
@@ -9,6 +9,8 @@ import '../../../core/widgets/jan_surfaces.dart';
 import '../../department/department_api.dart';
 import '../admin_api.dart';
 import '../models/admin_user.dart';
+import '../widgets/staff_area_picker.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS 16.3 "User & Role Management" screen: list/search/filter staff,
 /// create a staff account, change role, activate/suspend, reset
@@ -154,8 +156,8 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                 child: TextField(
                   controller: _searchController,
                   textInputAction: TextInputAction.search,
-                  decoration: const InputDecoration(
-                    hintText: 'Search by name or mobile number',
+                  decoration: InputDecoration(
+                    hintText: trs('Search by name or mobile number'),
                     prefixIcon: Icon(Icons.search_rounded),
                     isDense: true,
                   ),
@@ -166,13 +168,13 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
               IconButton.filledTonal(
                 onPressed: _refresh,
                 icon: const Icon(Icons.filter_alt_outlined),
-                tooltip: 'Apply filters',
+                tooltip: trs('Apply filters'),
               ),
               const SizedBox(width: JanSpace.xxs),
               IconButton.filled(
                 onPressed: _openAddUserDialog,
                 icon: const Icon(Icons.person_add_alt_1_rounded),
-                tooltip: 'Add User',
+                tooltip: trs('Add User'),
               ),
             ],
           ),
@@ -183,7 +185,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const JanSkeletonList(semanticLabel: 'Loading users');
+                return JanSkeletonList(semanticLabel: trs('Loading users'));
               }
               if (snapshot.hasError || !snapshot.hasData) {
                 return JanErrorState.fromError(snapshot.error, fallback: 'Could not load users.', onRetry: _refresh);
@@ -360,6 +362,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   final _emailController = TextEditingController();
   String _role = manageableStaffRoles.first;
   int? _departmentId;
+  StaffArea _area = StaffArea.none; // V34: where the staff member works
   List<DepartmentOption> _departments = [];
   bool _submitting = false;
   bool _loadingDepartments = true;
@@ -402,6 +405,9 @@ class _AddUserDialogState extends State<_AddUserDialog> {
         email: _emailController.text.trim(),
         role: _role,
         departmentId: _departmentId,
+        districtCode: _area.district?.code,
+        localBodyCode: _area.body?.code,
+        wardId: _area.ward?.wardId,
       );
       if (mounted) Navigator.of(context).pop(result);
     } catch (e) {
@@ -426,21 +432,21 @@ class _AddUserDialogState extends State<_AddUserDialog> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Full name'),
+                decoration: InputDecoration(labelText: trs('Full name')),
                 validator: validatePersonName, // audit GAP-054 (SRS 17.1)
               ),
               TextFormField(
                 controller: _mobileController,
-                decoration: const InputDecoration(labelText: 'Mobile number'),
+                decoration: InputDecoration(labelText: trs('Mobile number')),
                 keyboardType: TextInputType.phone,
                 validator: (v) =>
                     (v == null || !RegExp(r'^[6-9]\d{9}$').hasMatch(v.trim())) ? 'Enter a valid 10-digit number' : null,
               ),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  helperText: 'The temporary password is e-mailed here',
+                decoration: InputDecoration(
+                  labelText: trs('Email'),
+                  helperText: trs('The temporary password is e-mailed here'),
                 ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) => (v == null || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim()))
@@ -451,7 +457,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
               DropdownButtonFormField<String>(
                 initialValue: _role,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Role'),
+                decoration: InputDecoration(labelText: trs('Role')),
                 items: manageableStaffRoles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
                 onChanged: (v) => setState(() => _role = v!),
               ),
@@ -464,13 +470,15 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                   : DropdownButtonFormField<int?>(
                       initialValue: _departmentId,
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Department (optional)'),
+                      decoration: InputDecoration(labelText: trs('Department (optional)')),
                       items: [
                         const DropdownMenuItem<int?>(value: null, child: Text('None')),
                         ..._departments.map((d) => DropdownMenuItem<int?>(value: d.departmentId, child: Text(d.name))),
                       ],
                       onChanged: (v) => setState(() => _departmentId = v),
                     ),
+              // V34: area chosen from LGD lists, never typed (backend AdminUserService#staffArea)
+              StaffAreaPicker(value: _area, onChanged: (a) => setState(() => _area = a)),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),

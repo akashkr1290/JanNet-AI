@@ -4,7 +4,7 @@ import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_form_widgets.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../widgets/auth_layout.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/validators.dart';
@@ -12,6 +12,7 @@ import '../../wards/models/ward.dart';
 import '../../wards/wards_api.dart';
 import '../auth_api.dart';
 import 'otp_verification_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS Screen 16.1 "Registration / Login" (registration half) - Phase 17.
 /// Public/unauthenticated screen (SecurityConfig permits `/auth/**`
@@ -175,8 +176,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return DropdownButtonFormField<int>(
       initialValue: _selectedWardId,
       isExpanded: true,
-      decoration: const InputDecoration(
-        hintText: 'Select your ward',
+      decoration: InputDecoration(
+        hintText: trs('Select your ward'),
         prefixIcon: Icon(Icons.location_city_outlined),
       ),
       items: [
@@ -215,8 +216,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textInputAction: TextInputAction.next,
                 textCapitalization: TextCapitalization.words,
                 autofillHints: const [AutofillHints.name],
-                decoration: const InputDecoration(
-                  hintText: 'Your full name',
+                decoration: InputDecoration(
+                  hintText: trs('Your full name'),
                   prefixIcon: Icon(Icons.badge_outlined),
                 ),
                 validator: validatePersonName, // audit GAP-054 (SRS 17.1)
@@ -228,11 +229,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.telephoneNumberNational],
-                decoration: const InputDecoration(
-                  hintText: '10-digit number',
+                decoration: InputDecoration(
+                  hintText: trs('10-digit number'),
                   prefixIcon: Icon(Icons.phone_iphone_rounded),
                   prefixText: '+91  ',
-                  helperText: 'Used to sign in and for complaint updates.',
+                  helperText: trs('Used to sign in and for complaint updates.'),
                 ),
                 validator: (v) => (v == null || !_mobilePattern.hasMatch(v.trim()))
                     ? 'Enter a valid 10-digit mobile number'
@@ -245,8 +246,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.email],
-                decoration: const InputDecoration(
-                  hintText: 'name@example.com',
+                decoration: InputDecoration(
+                  hintText: trs('name@example.com'),
                   prefixIcon: Icon(Icons.alternate_email_rounded),
                 ),
                 validator: (v) {
@@ -277,10 +278,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.newPassword],
                 decoration: InputDecoration(
-                  hintText: 'At least 8 characters',
+                  hintText: trs('At least 8 characters'),
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
                   suffixIcon: IconButton(
-                    tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                    tooltip: trs(_obscurePassword ? 'Show password' : 'Hide password'),
                     icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
@@ -297,10 +298,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: _obscureConfirm,
                 textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
-                  hintText: 'Re-enter your password',
+                  hintText: trs('Re-enter your password'),
                   prefixIcon: const Icon(Icons.lock_reset_rounded),
                   suffixIcon: IconButton(
-                    tooltip: _obscureConfirm ? 'Show password' : 'Hide password',
+                    tooltip: trs(_obscureConfirm ? 'Show password' : 'Hide password'),
                     icon: Icon(_obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                     onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
                   ),
@@ -329,7 +330,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               TextButton(
                 onPressed: _loading ? null : () => Navigator.of(context).maybePop(),
-                child: const Text.rich(
+                child: const TextRich(
                   TextSpan(
                     text: 'Already have an account? ',
                     style: TextStyle(color: JanColors.slate, fontWeight: FontWeight.w500),

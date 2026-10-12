@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/error_text.dart';
 import '../department_api.dart';
 import '../models/department_performance.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Phase 13 (SRS 16.2 Officer Queue "Buttons: ... Reassign ..."
 /// + "Validation: ... Reassign requires selecting a valid officer within
@@ -27,11 +28,16 @@ import '../models/department_performance.dart';
 class ReassignOfficerDialog extends StatefulWidget {
   final int departmentId;
   final int? currentOfficerId;
+
+  /// Where the complaint is ("Ghaziabad · Ward 91 - Kavi Nagar"), shown above
+  /// the officer list so the Head can pick the officer for that ward / area.
+  final String? complaintArea;
   final Future<void> Function(int? officerId, String? note) onSubmit;
 
   const ReassignOfficerDialog({
     super.key,
     required this.departmentId,
+    this.complaintArea,
     this.currentOfficerId,
     required this.onSubmit,
   });
@@ -100,6 +106,18 @@ class _ReassignOfficerDialogState extends State<ReassignOfficerDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (widget.complaintArea != null && widget.complaintArea!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.location_on_outlined, size: 18, color: JanColors.muted),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text('Complaint area: ${widget.complaintArea}',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ]),
+                ),
               FutureBuilder<List<OfficerSummary>>(
                 future: _officersFuture,
                 builder: (context, snapshot) {
@@ -135,9 +153,9 @@ class _ReassignOfficerDialogState extends State<ReassignOfficerDialog> {
                       _selectedOfficerId = v;
                       _error = null;
                     }),
-                    decoration: const InputDecoration(
-                      labelText: 'Government Officer',
-                      helperText: 'Availability and open complaints are shown for each officer',
+                    decoration: InputDecoration(
+                      labelText: trs('Government Officer'),
+                      helperText: trs('Availability and open complaints are shown for each officer'),
                       prefixIcon: Icon(Icons.badge_outlined),
                     ),
                   );
@@ -148,7 +166,7 @@ class _ReassignOfficerDialogState extends State<ReassignOfficerDialog> {
                 controller: _noteController,
                 maxLength: 500,
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
+                decoration: InputDecoration(labelText: trs('Note (optional)')),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 4),

@@ -6,11 +6,12 @@ import '../../../core/widgets/jan_form_widgets.dart';
 import '../../../core/widgets/jan_states.dart';
 import '../widgets/auth_layout.dart';
 import 'register_screen.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/api/api_exception.dart';
 import '../auth_api.dart';
 import 'login_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS Screen 16.1 OTP input + "Resend OTP" link, split out as its own
 /// screen (Phase 17) rather than inlined into RegisterScreen since

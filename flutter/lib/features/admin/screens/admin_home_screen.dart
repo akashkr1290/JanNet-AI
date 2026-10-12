@@ -13,6 +13,7 @@ import 'admin_routing_rules_screen.dart';
 import 'admin_settings_screen.dart';
 import 'admin_user_management_screen.dart';
 import '../../users/widgets/signed_in_identity.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// Phase 14 (Admin & Settings Module) home shell for ADMIN/SUPER_ADMIN
 /// accounts - the Admin equivalent of DepartmentHeadHomeScreen (Phase
@@ -74,12 +75,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         // Audit GAP-039: daily / weekly / custom-range reports.
         JanShellAction(
           icon: Icons.summarize_outlined,
-          tooltip: 'Reports',
+          tooltip: trs('Reports'),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PeriodReportScreen())),
         ),
         JanShellAction(
           icon: Icons.notifications_outlined,
-          tooltip: 'Notifications',
+          tooltip: trs('Notifications'),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
         ),
         // Distinct label from the "Settings" destination (Phase 14
@@ -87,7 +88,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         // settings (Phase 15), not a platform config screen.
         JanShellAction(
           icon: Icons.manage_accounts_outlined,
-          tooltip: 'My Settings',
+          tooltip: trs('My Settings'),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalSettingsScreen())),
         ),
       ],
