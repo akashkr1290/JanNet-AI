@@ -53,6 +53,8 @@ class AdminApi {
     required String role,
     int? departmentId,
     int? wardId,
+    int? districtCode, // V34 work area (widgets/staff_area_picker.dart)
+    int? localBodyCode,
   }) async {
     final json = await _client.post('/admin/users', body: {
       'fullName': fullName,
@@ -61,6 +63,8 @@ class AdminApi {
       'role': role,
       if (departmentId != null) 'departmentId': departmentId,
       if (wardId != null) 'wardId': wardId,
+      if (districtCode != null) 'districtCode': districtCode,
+      if (localBodyCode != null) 'localBodyCode': localBodyCode,
     }) as Map<String, dynamic>;
     return AdminCreateUserResult.fromJson(json);
   }
@@ -160,11 +164,21 @@ class AdminApi {
     return json.map((e) => AdminDepartment.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<AdminDepartment> saveDepartment({int? departmentId, required String name, String? description, int? headUserId}) async {
+  /// V34: [districtCode]/[localBodyCode] = area the department serves (both null = every area).
+  Future<AdminDepartment> saveDepartment({
+    int? departmentId,
+    required String name,
+    String? description,
+    int? headUserId,
+    int? districtCode,
+    int? localBodyCode,
+  }) async {
     final body = {
       'name': name,
       if (description != null && description.isNotEmpty) 'description': description,
       if (headUserId != null) 'headUserId': headUserId,
+      if (districtCode != null) 'districtCode': districtCode,
+      if (localBodyCode != null) 'localBodyCode': localBodyCode,
     };
     final json = departmentId == null
         ? await _client.post('/admin/departments', body: body)
@@ -177,16 +191,26 @@ class AdminApi {
     return AdminDepartment.fromJson(json as Map<String, dynamic>);
   }
 
-  Future<List<AdminWard>> listWards() async {
-    final json = await _client.get('/admin/wards') as List;
+  /// V34: [localBodyCode] given = that body's wards (LGD imports hold thousands).
+  Future<List<AdminWard>> listWards({int? localBodyCode}) async {
+    final json = await _client.get('/admin/wards', query: {if (localBodyCode != null) 'localBodyCode': localBodyCode}) as List;
     return json.map((e) => AdminWard.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// [boundaryGeojson]: GeoJSON Polygon/MultiPolygon text; empty = no boundary.
-  Future<AdminWard> saveWard({int? wardId, required String name, String? code, String? boundaryGeojson}) async {
+  Future<AdminWard> saveWard({
+    int? wardId,
+    required String name,
+    String? code,
+    String? boundaryGeojson,
+    int? localBodyCode, // V34: the ward's Gram Panchayat / Nagar Nigam
+    String? wardNumber,
+  }) async {
     final body = {
       'name': name,
       if (code != null && code.isNotEmpty) 'code': code,
+      if (localBodyCode != null) 'localBodyCode': localBodyCode,
+      if (wardNumber != null && wardNumber.isNotEmpty) 'wardNumber': wardNumber,
       if (boundaryGeojson != null && boundaryGeojson.trim().isNotEmpty) 'boundaryGeojson': boundaryGeojson.trim(),
     };
     final json = wardId == null

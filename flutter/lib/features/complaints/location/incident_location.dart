@@ -71,6 +71,120 @@ class DetectedLocation {
   }
 }
 
+/// V34: the address and government area of the incident point - PIN,
+/// landmark, village / Gram Panchayat or Nagar Nigam, district, ward - as the
+/// citizen confirmed it ("Is this place X?" -> Yes, or chosen from the
+/// PIN / village / ward lists). Sent with the complaint as the backend's
+/// IncidentArea fields (LocationService#applyArea checks the codes).
+/// Built by area_confirm_card.dart / manual_area_panel.dart from the
+/// backend's GeoAddress / AreaMatch (geo_models.dart).
+class IncidentArea {
+  final String? pincode;
+  final String? landmark;
+  final String? locality;
+  final String? formattedAddress;
+  final int? villageCode;
+  final String? villageName;
+  final int? localBodyCode;
+  final String? localBodyName;
+  final bool localBodyUrban;
+  final String? districtName;
+
+  /// false = the district is not served by this deployment (the app warns; the
+  /// complaint is still accepted and flagged for Admin review).
+  final bool districtServed;
+  final int? wardId;
+  final String? wardName;
+
+  const IncidentArea({
+    this.pincode,
+    this.landmark,
+    this.locality,
+    this.formattedAddress,
+    this.villageCode,
+    this.villageName,
+    this.localBodyCode,
+    this.localBodyName,
+    this.localBodyUrban = false,
+    this.districtName,
+    this.districtServed = true,
+    this.wardId,
+    this.wardName,
+  });
+
+  /// One line for the summary: "Jolah Bigha · Pakri GP · Ward 4 · Gaya".
+  String get summary => [
+        if (landmark != null && landmark!.isNotEmpty) landmark!,
+        if (villageName != null) villageName! else if (locality != null && locality!.isNotEmpty) locality!,
+        if (localBodyName != null) localBodyUrban ? localBodyName! : '${localBodyName!} GP',
+        if (wardName != null) wardName!,
+        if (districtName != null) districtName!,
+        if (pincode != null) pincode!,
+      ].join(' · ');
+
+  IncidentArea withWard(int? id, String? name) => IncidentArea(
+        pincode: pincode,
+        landmark: landmark,
+        locality: locality,
+        formattedAddress: formattedAddress,
+        villageCode: villageCode,
+        villageName: villageName,
+        localBodyCode: localBodyCode,
+        localBodyName: localBodyName,
+        localBodyUrban: localBodyUrban,
+        districtName: districtName,
+        districtServed: districtServed,
+        wardId: id,
+        wardName: name,
+      );
+
+  /// Multipart fields for POST /complaints (backend ComplaintController V34 params).
+  Map<String, String> toApiFields() => {
+        if (pincode != null) 'pincode': pincode!,
+        if (landmark != null && landmark!.isNotEmpty) 'landmark': landmark!,
+        if (locality != null && locality!.isNotEmpty) 'locality': locality!,
+        if (formattedAddress != null && formattedAddress!.isNotEmpty) 'formattedAddress': formattedAddress!,
+        if (villageCode != null) 'villageCode': villageCode.toString(),
+        if (localBodyCode != null) 'localBodyCode': localBodyCode.toString(),
+        if (wardId != null) 'wardId': wardId.toString(),
+      };
+
+  Map<String, dynamic> toJson() => {
+        'pincode': pincode,
+        'landmark': landmark,
+        'locality': locality,
+        'address': formattedAddress,
+        'villageCode': villageCode,
+        'villageName': villageName,
+        'bodyCode': localBodyCode,
+        'bodyName': localBodyName,
+        'bodyUrban': localBodyUrban,
+        'district': districtName,
+        'served': districtServed,
+        'wardId': wardId,
+        'wardName': wardName,
+      };
+
+  static IncidentArea? fromJson(Object? json) {
+    if (json is! Map) return null;
+    return IncidentArea(
+      pincode: json['pincode'] as String?,
+      landmark: json['landmark'] as String?,
+      locality: json['locality'] as String?,
+      formattedAddress: json['address'] as String?,
+      villageCode: (json['villageCode'] as num?)?.toInt(),
+      villageName: json['villageName'] as String?,
+      localBodyCode: (json['bodyCode'] as num?)?.toInt(),
+      localBodyName: json['bodyName'] as String?,
+      localBodyUrban: json['bodyUrban'] as bool? ?? false,
+      districtName: json['district'] as String?,
+      districtServed: json['served'] as bool? ?? true,
+      wardId: (json['wardId'] as num?)?.toInt(),
+      wardName: json['wardName'] as String?,
+    );
+  }
+}
+
 /// Everything the app knows about the incident location of one complaint.
 ///
 /// INCIDENT LOCATION != SUBMISSION LOCATION: [confirmed] is where the problem
@@ -90,12 +204,17 @@ class IncidentLocation {
   final int? fallbackWardId;
   final String? fallbackWardName;
 
+  /// V34: address + government area of [confirmed], once the citizen accepted
+  /// it. Null = not confirmed yet (the server then works it out itself).
+  final IncidentArea? area;
+
   const IncidentLocation({
     this.photoTakenAt,
     this.detected,
     this.confirmed,
     this.fallbackWardId,
     this.fallbackWardName,
+    this.area,
   });
 
   static const none = IncidentLocation();
@@ -105,10 +224,23 @@ class IncidentLocation {
   /// The pin the map should open on.
   GeoPoint? get proposedPoint => confirmed ?? detected?.point;
 
-  IncidentLocation confirm(GeoPoint point) => IncidentLocation(
+  /// The citizen confirmed [point]; [area] is its address/area when known
+  /// (a new point without an area clears the old one - it described another place).
+  IncidentLocation confirm(GeoPoint point, {IncidentArea? area}) => IncidentLocation(
         photoTakenAt: photoTakenAt,
         detected: detected,
         confirmed: point,
+        area: area,
+      );
+
+  /// Same point, area accepted / corrected (area_confirm_card.dart).
+  IncidentLocation withArea(IncidentArea? area) => IncidentLocation(
+        photoTakenAt: photoTakenAt,
+        detected: detected,
+        confirmed: confirmed,
+        fallbackWardId: fallbackWardId,
+        fallbackWardName: fallbackWardName,
+        area: area,
       );
 
   IncidentLocation useWard(int wardId, String wardName) => IncidentLocation(
@@ -150,6 +282,7 @@ class IncidentLocation {
       fields['latitude'] = confirmed!.latitude.toStringAsFixed(6);
       fields['longitude'] = confirmed!.longitude.toStringAsFixed(6);
       fields['locationSource'] = _sourceFor(detected, confirmed!);
+      if (area != null) fields.addAll(area!.toApiFields());
     } else if (fallbackWardId != null) {
       fields['wardId'] = fallbackWardId.toString();
     }
@@ -180,6 +313,7 @@ class IncidentLocation {
         'confirmed': confirmed?.toJson(),
         'wardId': fallbackWardId,
         'wardName': fallbackWardName,
+        'area': area?.toJson(),
       };
 
   static IncidentLocation fromJson(Object? json) {
@@ -190,6 +324,7 @@ class IncidentLocation {
       confirmed: GeoPoint.fromJson(json['confirmed']),
       fallbackWardId: (json['wardId'] as num?)?.toInt(),
       fallbackWardName: json['wardName'] as String?,
+      area: IncidentArea.fromJson(json['area']),
     );
   }
 }

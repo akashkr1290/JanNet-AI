@@ -8,6 +8,7 @@ import 'incident_location.dart';
 import 'location_policy.dart';
 import 'photo_downscale.dart';
 import 'photo_exif.dart';
+import 'photo_native.dart';
 
 /// A complaint photo plus the location the app found for it automatically.
 class PhotoIntake {
@@ -25,30 +26,53 @@ class PhotoIntake {
 /// Takes or picks a complaint photo and works out where it was taken.
 ///
 /// Source priority (V33): capture GPS (in-app camera, read right after the
-/// shot) -> the photo's EXIF GPS -> nothing (the citizen places the pin).
+/// shot) -> the photo's EXIF GPS -> nothing (the citizen is then asked "Are
+/// you at the place now?" - complaint_submission_screen.dart).
 /// The citizen's position is read ONLY for a fresh in-app camera capture -
 /// never for a gallery photo, which may have been taken anywhere.
 ///
-/// Android: the picker resizes to 1600 px and keeps the EXIF tags (GPS,
-/// DateTimeOriginal) in the resized copy. Web: the browser's resize drops all
-/// metadata, so the ORIGINAL is picked, read, and then downscaled here.
+/// V34 photo size: at most 2048 px and 2 MB (LocationPolicy.photoMaxSide /
+/// photoMaxBytes), quality lowered step by step only when needed.
+///  * Android camera: the picker saves 2048 px / quality 92 (EXIF kept); a
+///    larger file is shrunk natively (photo_native.dart -> MainActivity.shrink).
+///  * Android gallery: MainActivity.pickOriginal gives the ORIGINAL file with
+///    its GPS (Android hides it from image_picker), EXIF is read here, then it
+///    is shrunk natively. image_picker is the fallback if that fails.
+///  * Web: the browser's own resize drops all metadata, so the ORIGINAL is
+///    picked, read, then downscaled in the browser (photo_downscale_web.dart).
 class PhotoIntakeService {
   PhotoIntakeService._();
 
   static Future<PhotoIntake?> takeOrPick(ImageSource source, {DateTime Function() clock = DateTime.now}) async {
+    if (PhotoNative.available && source == ImageSource.gallery) {
+      try {
+        final picked = await PhotoNative.pickOriginal();
+        if (picked == null) return null; // cancelled
+        return await _fromAndroidFile(picked.path, picked.name, picked.mime, fresh: false, clock: clock);
+      } catch (_) {
+        // channel unavailable / failed: image_picker below (photo may lose its GPS)
+      }
+    }
     final picker = ImagePicker();
-    // Audit GAP-009: 1600 px on the longer side keeps ample detail (the AI
-    // model works at 640 px) and stays above the 480p minimum (SRS 17.2).
     final file = kIsWeb
         ? await picker.pickImage(source: source)
-        : await picker.pickImage(source: source, imageQuality: 85, maxWidth: 1600, maxHeight: 1600);
+        : await picker.pickImage(
+            source: source,
+            imageQuality: 92,
+            maxWidth: LocationPolicy.photoMaxSide.toDouble(),
+            maxHeight: LocationPolicy.photoMaxSide.toDouble(),
+          );
     if (file == null) return null;
+    if (!kIsWeb) {
+      return _fromAndroidFile(file.path, file.name, file.mimeType, fresh: source == ImageSource.camera, clock: clock);
+    }
+
+    // ---- Web
     final returnedAt = clock();
     final original = await file.readAsBytes();
     final exif = readPhotoExif(original);
-
     var fresh = source == ImageSource.camera;
-    if (fresh && kIsWeb) {
+    if (fresh) {
       // A browser "camera" button can also hand back an existing file (desktop
       // file chooser, iOS photo library). Only a just-created photo counts.
       DateTime? created = exif.takenAt;
@@ -61,7 +85,6 @@ class PhotoIntakeService {
       }
       fresh = isFreshCapture(created, returnedAt);
     }
-
     PositionResult? fix;
     if (fresh) fix = await DevicePosition.read();
 
@@ -70,19 +93,50 @@ class PhotoIntakeService {
       filename: file.name.trim().isEmpty ? 'photo.jpg' : file.name,
       contentType: UploadFile.imageContentType(original, declared: file.mimeType, filename: file.name),
     );
-    if (kIsWeb) {
-      final smaller = await downscaleForUpload(original);
-      if (smaller != null && smaller.isNotEmpty && smaller.length < original.length) {
-        upload = UploadFile(bytes: smaller, filename: _jpegName(file.name), contentType: 'image/jpeg');
+    final smaller = await downscaleForUpload(original,
+        maxSide: LocationPolicy.photoMaxSide, maxBytes: LocationPolicy.photoMaxBytes);
+    if (smaller != null && smaller.isNotEmpty && smaller.length < original.length) {
+      upload = UploadFile(bytes: smaller, filename: _jpegName(file.name), contentType: 'image/jpeg');
+    }
+    final decided = decideProposal(fresh: fresh, fix: fix, exif: exif, returnedAt: returnedAt);
+    return PhotoIntake(photo: PickedPhoto(upload: upload), location: decided.location, note: decided.note);
+  }
+
+  /// Android: [path] is a full-size or picker-resized file. Location from EXIF
+  /// (gallery) or GPS right after the shot (camera); upload copy <= 2048 px / 2 MB.
+  static Future<PhotoIntake> _fromAndroidFile(String path, String name, String? mime,
+      {required bool fresh, required DateTime Function() clock}) async {
+    final returnedAt = clock();
+    final original = await XFile(path).readAsBytes();
+    final exif = readPhotoExif(original);
+    final fix = fresh ? await DevicePosition.read() : null;
+
+    var uploadPath = path;
+    var bytes = original;
+    final tooBig = original.length > LocationPolicy.photoMaxBytes;
+    if (tooBig || !fresh) {
+      // gallery originals are full size (often 4-10 MB); camera files only when over 2 MB
+      try {
+        final shrunk = await PhotoNative.shrink(path,
+            maxSide: LocationPolicy.photoMaxSide, maxBytes: LocationPolicy.photoMaxBytes);
+        if (shrunk != null) {
+          final b = await XFile(shrunk).readAsBytes();
+          if (b.isNotEmpty && b.length < original.length) {
+            uploadPath = shrunk;
+            bytes = b;
+          }
+        }
+      } catch (_) {
+        // keep the original; the backend accepts up to 10 MB
       }
     }
-    final photo = PickedPhoto(upload: upload, path: kIsWeb ? null : file.path);
-    final decided = decideProposal(
-      fresh: fresh,
-      fix: fix,
-      exif: exif,
-      returnedAt: returnedAt,
+    final type = UploadFile.imageContentType(bytes,
+        declared: uploadPath == path ? mime : 'image/jpeg', filename: uploadPath == path ? name : 'photo.jpg');
+    final photo = PickedPhoto(
+      upload: UploadFile(bytes: bytes, filename: uploadPath == path ? name : _jpegName(name), contentType: type),
+      path: uploadPath,
     );
+    final decided = decideProposal(fresh: fresh, fix: fix, exif: exif, returnedAt: returnedAt);
     return PhotoIntake(photo: photo, location: decided.location, note: decided.note);
   }
 

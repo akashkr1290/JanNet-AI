@@ -9,8 +9,25 @@ class AdminDepartment {
   final String? description;
   final int? headUserId;
   final bool isActive;
+  // V34 area served (null = every area)
+  final String? districtName;
+  final String? localBodyName;
+  final int? districtCode;
+  final int? localBodyCode;
 
-  AdminDepartment({required this.departmentId, required this.name, this.description, this.headUserId, required this.isActive});
+  AdminDepartment({
+    required this.departmentId,
+    required this.name,
+    this.description,
+    this.headUserId,
+    required this.isActive,
+    this.districtName,
+    this.localBodyName,
+    this.districtCode,
+    this.localBodyCode,
+  });
+
+  String get areaLabel => localBodyName ?? districtName ?? 'All areas';
 
   factory AdminDepartment.fromJson(Map<String, dynamic> json) => AdminDepartment(
         departmentId: (json['departmentId'] as num).toInt(),
@@ -18,6 +35,10 @@ class AdminDepartment {
         description: json['description'] as String?,
         headUserId: (json['headUserId'] as num?)?.toInt(),
         isActive: (json['isActive'] as bool?) ?? true,
+        districtName: json['districtName'] as String?,
+        localBodyName: json['localBodyName'] as String?,
+        districtCode: (json['districtCode'] as num?)?.toInt(),
+        localBodyCode: (json['localBodyCode'] as num?)?.toInt(),
       );
 }
 
@@ -28,6 +49,8 @@ class AdminWard {
   final String? boundaryGeojson;
   final bool hasBoundary;
   final bool isActive;
+  final int? localBodyCode; // V34
+  final String? wardNumber;
 
   AdminWard({
     required this.wardId,
@@ -36,6 +59,8 @@ class AdminWard {
     this.boundaryGeojson,
     required this.hasBoundary,
     required this.isActive,
+    this.localBodyCode,
+    this.wardNumber,
   });
 
   factory AdminWard.fromJson(Map<String, dynamic> json) => AdminWard(
@@ -45,6 +70,8 @@ class AdminWard {
         boundaryGeojson: json['boundaryGeojson'] as String?,
         hasBoundary: (json['hasBoundary'] as bool?) ?? false,
         isActive: (json['isActive'] as bool?) ?? true,
+        localBodyCode: (json['localBodyCode'] as num?)?.toInt(),
+        wardNumber: json['wardNumber'] as String?,
       );
 }
 

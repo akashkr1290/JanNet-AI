@@ -3,6 +3,7 @@ import '../../core/api/api_exception.dart';
 import '../../core/api/upload_file.dart';
 import 'models/complaint.dart';
 import 'models/complaint_status.dart';
+import 'models/location_check.dart';
 
 /// Thin wrapper over ComplaintController's endpoints (backend, Phase 6;
 /// Officer Module actions added Phase 12).
@@ -236,5 +237,31 @@ class ComplaintsApi {
       if (note != null && note.isNotEmpty) 'note': note,
     }) as Map<String, dynamic>;
     return ComplaintDetail.fromJson(json);
+  }
+
+  /// V36: GET /api/v1/complaints/location-verification - staff queue of
+  /// complaints whose ward / area could not be proven by a ward map.
+  Future<List<LocationCheckItem>> locationChecks({int page = 0, int pageSize = 50}) async {
+    final json = await _client.get('/complaints/location-verification', query: {'page': page, 'pageSize': pageSize})
+        as Map<String, dynamic>;
+    final content = (json['content'] as List?) ?? [];
+    return content.map((e) => LocationCheckItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// V36: PATCH /api/v1/complaints/{id}/location-verification - staff confirm
+  /// the ward ([wardId]) or the area as it is (null).
+  Future<ComplaintAssignment> verifyLocation(int complaintId, {int? wardId, String? note}) async {
+    final json = await _client.patch('/complaints/$complaintId/location-verification', body: {
+      'wardId': wardId,
+      if (note != null && note.isNotEmpty) 'note': note,
+    }) as Map<String, dynamic>;
+    return ComplaintAssignment.fromJson(json);
+  }
+
+  /// V36: GET /api/v1/complaints/{id}/assignment - department, officer (staff
+  /// only) and the assignment history.
+  Future<ComplaintAssignment> assignment(int complaintId) async {
+    final json = await _client.get('/complaints/$complaintId/assignment') as Map<String, dynamic>;
+    return ComplaintAssignment.fromJson(json);
   }
 }

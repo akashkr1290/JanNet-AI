@@ -6,6 +6,9 @@
     <!-- geolocator: GPS capture on the complaint submission screen. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- V34: read the GPS saved inside gallery photos (Android 10+ hides it otherwise).
+         Requested by MainActivity.startPick just before the gallery opens. -->
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION"/>
     <application
         android:label="JANNet AI"
         android:name="${applicationName}"

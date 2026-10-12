@@ -22,6 +22,28 @@ class ComplaintLocation {
   final List<String> flags;
   final double? submissionDistanceMeters;
 
+  // V34 real area (backend LocationResponse; null for older complaints).
+  final String? pincode;
+  final String? landmark;
+  final String? locality;
+  final String? districtName;
+  final String? localBodyName;
+  final String? localBodyType;
+  final String? villageName;
+  final String? wardNumber;
+
+  /// BOUNDARY (ward map), CITIZEN (chosen), STAFF (set by the office), LEGACY;
+  /// LOCALITY / NEAREST only on complaints from before V36.
+  final String? wardMatch;
+
+  /// V36: VERIFIED_BOUNDARY / REQUIRES_VERIFICATION / STAFF_VERIFIED.
+  final String? locationVerificationStatus;
+  final String? verificationReason;
+  final int? suggestedWardId;
+  final String? suggestedWardName;
+
+  bool get needsLocationCheck => locationVerificationStatus == 'REQUIRES_VERIFICATION';
+
   ComplaintLocation({
     this.latitude,
     this.longitude,
@@ -36,7 +58,31 @@ class ComplaintLocation {
     this.confirmedByCitizen = false,
     this.flags = const [],
     this.submissionDistanceMeters,
+    this.pincode,
+    this.landmark,
+    this.locality,
+    this.districtName,
+    this.localBodyName,
+    this.localBodyType,
+    this.villageName,
+    this.wardNumber,
+    this.wardMatch,
+    this.locationVerificationStatus,
+    this.verificationReason,
+    this.suggestedWardId,
+    this.suggestedWardName,
   });
+
+  /// "Jolah Bigha, Pakri (Village Panchayat), Gaya 824236" - the place in words for officers.
+  String? get areaLine {
+    final parts = [
+      if (landmark != null) landmark!,
+      villageName ?? locality,
+      if (localBodyName != null) localBodyType != null ? '$localBodyName ($localBodyType)' : localBodyName,
+      if (districtName != null) districtName! + (pincode != null ? ' $pincode' : ''),
+    ].whereType<String>().where((p) => p.isNotEmpty).toList();
+    return parts.isEmpty ? null : parts.join(', ');
+  }
 
   bool get hasPoint => latitude != null && longitude != null;
   bool get hasDetected => detectedLatitude != null && detectedLongitude != null;
@@ -57,6 +103,19 @@ class ComplaintLocation {
       confirmedByCitizen: json['confirmedByCitizen'] == true,
       flags: ((json['flags'] as List?) ?? const []).whereType<String>().toList(),
       submissionDistanceMeters: (json['submissionDistanceMeters'] as num?)?.toDouble(),
+      pincode: json['pincode'] as String?,
+      landmark: json['landmark'] as String?,
+      locality: json['locality'] as String?,
+      districtName: json['districtName'] as String?,
+      localBodyName: json['localBodyName'] as String?,
+      localBodyType: json['localBodyType'] as String?,
+      villageName: json['villageName'] as String?,
+      wardNumber: json['wardNumber'] as String?,
+      wardMatch: json['wardMatch'] as String?,
+      locationVerificationStatus: json['locationVerificationStatus'] as String?,
+      verificationReason: json['verificationReason'] as String?,
+      suggestedWardId: (json['suggestedWardId'] as num?)?.toInt(),
+      suggestedWardName: json['suggestedWardName'] as String?,
     );
   }
 }

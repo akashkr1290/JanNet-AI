@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/api/api_exception.dart';
@@ -8,10 +8,14 @@ import '../../../core/widgets/error_text.dart';
 import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_illustrations.dart';
 import '../../../core/widgets/jan_states.dart';
+import '../../../core/widgets/jan_step_progress.dart';
 import '../../../core/widgets/jan_surfaces.dart';
-import '../../wards/models/ward.dart';
-import '../../wards/wards_api.dart';
+import '../../../core/api/geo_api.dart';
+import '../../../core/l10n/app_strings.dart';
+import '../../../core/l10n/bi_text.dart';
+import '../location/area_confirm_card.dart';
 import '../location/device_position.dart';
+import '../location/geo_models.dart';
 import '../location/incident_location.dart';
 import '../location/incident_location_picker_screen.dart';
 import '../location/incident_map.dart';
@@ -22,6 +26,7 @@ import '../picked_photo.dart';
 import '../complaint_draft_service.dart';
 import '../complaints_api.dart';
 import 'complaint_detail_screen.dart';
+import '../../../core/l10n/tr_text.dart';
 
 /// SRS 15.1/17.2 (Complaint Submission Form): photo + description +
 /// location. Category/severity are intentionally NOT fields here - both
@@ -33,8 +38,14 @@ import 'complaint_detail_screen.dart';
 /// V33 - INCIDENT LOCATION != SUBMISSION LOCATION. The location step asks
 /// "Where is the problem?": the app proposes the location from the photo
 /// (GPS read right after an in-app camera capture, else the photo's EXIF GPS)
-/// and the citizen confirms it on an OpenStreetMap map - one tap when it is
-/// right - or places the pin by hand. The phone's position when this screen
+/// and the citizen confirms it on the map - one tap when it is right - or
+/// places the pin by hand.
+///
+/// V34: the confirmed point also gets its address and government area
+/// (village / Gram Panchayat or Nagar Nigam / ward) - "Is this the place?"
+/// (location/area_confirm_card.dart). A photo WITHOUT a location asks "Are
+/// you at the place now?": Yes -> the phone's GPS now; No -> the PIN ->
+/// village -> ward flow on the map (location/manual_area_panel.dart). The phone's position when this screen
 /// opens or when Submit is pressed is never used as the incident location.
 /// "Save & Report Later" keeps the photo, its location and its time together.
 class ComplaintSubmissionScreen extends StatefulWidget {
@@ -61,11 +72,14 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
   bool _stillThere = false;
   bool _savedForLater = false;
 
-  // Ward fallback - only when the map cannot be used (server stores an
-  // approximate ward location, LocationSource.WARD_FALLBACK).
-  bool _wardMode = false;
-  List<Ward>? _wards;
-  bool _loadingWards = false;
+  // V34: address + area of the confirmed point (GET /geo/reverse), for the
+  // inline "Is this the place?" card.
+  GeoAddress? _address;
+  bool _lookingUpAddress = false;
+  int _addressRequest = 0;
+
+  // V34 situation 4: photo without location - "Are you at the place now?" -> Yes.
+  bool _locatingHere = false;
 
   @override
   void initState() {
@@ -86,6 +100,8 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
       }
       _savedForLater = draft.savedForLater;
     });
+    final confirmed = _location.confirmed;
+    if (confirmed != null && _location.area == null) _lookUpArea(confirmed); // V34: area for the restored point
     final description = draft.description;
     if (description != null && description.isNotEmpty && _descriptionController.text.isEmpty) {
       _descriptionController.text = description;
@@ -136,6 +152,7 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
           confirmed: _location.confirmed,
           fallbackWardId: _location.fallbackWardId,
           fallbackWardName: _location.fallbackWardName,
+          area: _location.area,
         );
       }
       setState(() {
@@ -144,7 +161,6 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
         _location = location;
         _locationNote = location.isConfirmed ? null : intake.note;
         _stillThere = false;
-        _wardMode = false;
         if (_error == 'A photo is required.') _error = null;
       });
       _saveDraft();
@@ -172,6 +188,7 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
               confirmed: _location.confirmed,
               fallbackWardId: _location.fallbackWardId,
               fallbackWardName: _location.fallbackWardName,
+              area: _location.area,
             )
           : IncidentLocation.none;
       _locationNote = null;
@@ -183,7 +200,7 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
 
   // ---- Incident location ----
 
-  /// One-tap confirmation of the automatic location.
+  /// One-tap confirmation of the automatic location; then its address/area.
   void _confirmDetected() {
     final detected = _location.detected;
     if (detected == null) return;
@@ -193,53 +210,80 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
       if (_error != null && _error!.startsWith('Please confirm')) _error = null;
     });
     _saveDraft();
+    _lookUpArea(detected.point);
   }
 
-  Future<void> _openMap() async {
+  /// Address + LGD area of the confirmed point for the inline card
+  /// (backend GeoController /geo/reverse -> AreaResolver).
+  Future<void> _lookUpArea(GeoPoint point) async {
+    final id = ++_addressRequest;
+    setState(() {
+      _lookingUpAddress = true;
+      _address = null;
+    });
+    try {
+      final a = await GeoApi.instance.reverse(point);
+      if (mounted && id == _addressRequest) setState(() => _address = a);
+    } catch (_) {
+      // offline: the complaint can still be sent; the server works the area out
+    } finally {
+      if (mounted && id == _addressRequest) setState(() => _lookingUpAddress = false);
+    }
+  }
+
+  void _setArea(IncidentArea? area) {
+    setState(() => _location = _location.withArea(area));
+    _saveDraft();
+  }
+
+  /// [manual]: photo without location and the citizen is not at the place
+  /// (situation 4b, or "No" on the area card): open with the place-name
+  /// search first; the PIN -> village -> ward steps stay one tap away.
+  Future<void> _openMap({bool manual = false}) async {
     final detected = _location.detected;
     final note = detected != null && detected.isLowAccuracy && !_location.isConfirmed
         ? 'Your phone could only find an approximate location for this photo. '
             'Please move the map so the red pin is exactly on the problem.'
         : null;
-    final point = await Navigator.of(context).push<GeoPoint>(
+    final place = await Navigator.of(context).push<IncidentPlace>(
       MaterialPageRoute(
         builder: (_) => IncidentLocationPickerScreen(
-          initial: _location.proposedPoint,
+          initial: manual ? null : _location.proposedPoint,
           detected: detected?.point,
           note: note,
+          startManual: false,
+          searchFirst: manual,
+          initialArea: manual ? null : _location.area,
         ),
       ),
     );
-    if (point == null || !mounted) return;
+    if (place == null || !mounted) return;
     setState(() {
-      _location = _location.confirm(point);
+      _location = _location.confirm(place.point, area: place.area);
       _locationNote = null;
-      _wardMode = false;
       if (_error != null && _error!.startsWith('Please confirm')) _error = null;
     });
     _saveDraft();
+    if (place.area == null) _lookUpArea(place.point);
   }
 
-  Future<void> _useWardInstead() async {
-    setState(() => _wardMode = true);
-    if (_wards != null) return;
-    setState(() => _loadingWards = true);
-    try {
-      final wards = await WardsApi.instance.listActiveWards();
-      if (mounted) setState(() => _wards = wards);
-    } catch (_) {
-      if (mounted) setState(() => _wards = const []);
-    } finally {
-      if (mounted) setState(() => _loadingWards = false);
-    }
-  }
-
-  void _chooseWard(Ward? ward) {
-    if (ward == null) return;
+  /// Situation 4 (photo has no location): "Are you at the place now?" -> Yes:
+  /// the phone's GPS NOW becomes the proposal (the citizen still confirms it).
+  Future<void> _atThePlaceNow() async {
+    setState(() => _locatingHere = true);
+    final fix = await DevicePosition.read();
+    if (!mounted) return;
     setState(() {
-      _location = _location.useWard(ward.wardId, ward.name);
-      _locationNote = null;
-      if (_error != null && _error!.startsWith('Please confirm')) _error = null;
+      _locatingHere = false;
+      if (fix.ok) {
+        _location = IncidentLocation(
+          photoTakenAt: _location.photoTakenAt,
+          detected: DetectedLocation(point: fix.point!, source: DetectedSource.captureGps, accuracyMeters: fix.accuracyMeters),
+        );
+        _locationNote = null;
+      } else {
+        _locationNote = '${DevicePosition.explain(fix.failure!)} Please show us the place on the map.';
+      }
     });
     _saveDraft();
   }
@@ -247,7 +291,7 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
   void _changeLocation() {
     setState(() {
       _location = _location.unconfirmed();
-      _wardMode = false;
+      _address = null;
     });
     _saveDraft();
     _openMap();
@@ -347,7 +391,7 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
         _locationNote = null;
         _stillThere = false;
         _savedForLater = false;
-        _wardMode = false;
+        _address = null;
       });
       await showJanSuccessDialog(
         context,
@@ -434,10 +478,10 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
           maxLength: 500,
           maxLines: 4,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Description (optional)',
+          decoration: InputDecoration(
+            labelText: trs('Description (optional)'),
             alignLabelWithHint: true,
-            hintText: 'What\'s the issue? Any details that would help.',
+            hintText: trs('What\'s the issue? Any details that would help.'),
           ),
         ),
       ],
@@ -456,14 +500,14 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
             _saveDraft();
           },
           onConfirmDetected: _confirmDetected,
-          onOpenMap: _openMap,
+          onOpenMap: () => _openMap(),
+          onManual: () => _openMap(manual: true),
           onChange: _changeLocation,
-          wardMode: _wardMode,
-          wards: _wards,
-          loadingWards: _loadingWards,
-          onUseWard: _useWardInstead,
-          onWardChosen: _chooseWard,
-          onBackToMap: () => setState(() => _wardMode = false),
+          address: _address,
+          lookingUpAddress: _lookingUpAddress,
+          onAreaChanged: _setArea,
+          locatingHere: _locatingHere,
+          onAtThePlaceNow: _atThePlaceNow,
         ),
       ],
     );
@@ -495,11 +539,26 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
       ],
     );
 
+    // UI phase 1: step indicator. "Location" counts as done only once the
+    // citizen has confirmed a point, never for an unconfirmed guess.
+    final progress = ListenableBuilder(
+      listenable: _descriptionController,
+      builder: (context, _) => JanStepProgress(
+        labels: const ['Photo', 'Details', 'Location', 'Submit'],
+        done: [_photo != null, _descriptionController.text.trim().isNotEmpty, _location.isConfirmed, false],
+      ),
+    );
+
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= 860;
       return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(JanSpace.md, JanSpace.xs, JanSpace.md, JanSpace.xxl),
-        child: wide
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            progress,
+            const SizedBox(height: JanSpace.xs),
+            wide
             ? Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -530,6 +589,8 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
                   submitStep,
                 ],
               ),
+          ],
+        ),
       );
     });
   }
@@ -546,7 +607,7 @@ class _StepHeader extends StatelessWidget {
       padding: const EdgeInsets.only(top: JanSpace.lg, bottom: JanSpace.sm),
       child: Semantics(
         header: true,
-        label: 'Step $number: $title',
+        label: trs('Step $number: $title'),
         excludeSemantics: true,
         child: Row(
           children: [
@@ -674,7 +735,7 @@ class _PhotoStep extends StatelessWidget {
                         width: double.infinity,
                         fit: BoxFit.cover,
                         gaplessPlayback: true,
-                        semanticLabel: 'Selected complaint photo',
+                        semanticLabel: trs('Selected complaint photo'),
                         errorBuilder: (_, __, ___) => Container(
                           height: 230,
                           color: JanColors.surfaceAlt,
@@ -712,7 +773,7 @@ class _PhotoStep extends StatelessWidget {
                             color: const Color(0xB3203A5F),
                             shape: const CircleBorder(),
                             child: IconButton(
-                              tooltip: 'Remove photo',
+                              tooltip: trs('Remove photo'),
                               color: JanColors.white,
                               icon: const Icon(Icons.close_rounded),
                               onPressed: picking ? null : onRemove,
@@ -761,7 +822,7 @@ class _PhotoStep extends StatelessWidget {
   Widget _pickButton(String label, IconData icon, ImageSource source, {required bool primary, required String semantic}) {
     final onPressed = uploading ? null : () => onPick(source);
     return Semantics(
-      label: semantic,
+      label: trs(semantic),
       button: true,
       excludeSemantics: true,
       child: ConstrainedBox(
@@ -785,13 +846,15 @@ class _IncidentLocationStep extends StatelessWidget {
   final ValueChanged<bool> onStillThereChanged;
   final VoidCallback onConfirmDetected;
   final VoidCallback onOpenMap;
+  final VoidCallback onManual;
   final VoidCallback onChange;
-  final bool wardMode;
-  final List<Ward>? wards;
-  final bool loadingWards;
-  final VoidCallback onUseWard;
-  final ValueChanged<Ward?> onWardChosen;
-  final VoidCallback onBackToMap;
+  // V34: address / area of the confirmed point
+  final GeoAddress? address;
+  final bool lookingUpAddress;
+  final ValueChanged<IncidentArea?> onAreaChanged;
+  // V34 situation 4: photo without location
+  final bool locatingHere;
+  final VoidCallback onAtThePlaceNow;
 
   const _IncidentLocationStep({
     required this.location,
@@ -801,13 +864,13 @@ class _IncidentLocationStep extends StatelessWidget {
     required this.onStillThereChanged,
     required this.onConfirmDetected,
     required this.onOpenMap,
+    required this.onManual,
     required this.onChange,
-    required this.wardMode,
-    required this.wards,
-    required this.loadingWards,
-    required this.onUseWard,
-    required this.onWardChosen,
-    required this.onBackToMap,
+    required this.address,
+    required this.lookingUpAddress,
+    required this.onAreaChanged,
+    required this.locatingHere,
+    required this.onAtThePlaceNow,
   });
 
   @override
@@ -835,12 +898,29 @@ class _IncidentLocationStep extends StatelessWidget {
     }
 
     if (location.confirmed != null) {
+      // ---- confirmed point: preview + area ("Is this the place?")
       children.addAll([
         IncidentMapPreview(point: location.confirmed!, detected: location.detected?.point),
         const SizedBox(height: JanSpace.xs),
         _ConfirmedRow(text: 'Problem location confirmed', onChange: onChange),
       ]);
+      final area = location.area;
+      if (area != null && (area.villageCode != null || area.localBodyCode != null) && address == null) {
+        // area accepted earlier (picker or restored draft)
+        children.add(Text(area.summary, style: const TextStyle(fontWeight: FontWeight.w700, color: JanColors.ink)));
+      } else if (address != null || lookingUpAddress) {
+        children.add(JanCard(
+          child: AreaConfirmCard(
+            address: address,
+            loading: lookingUpAddress,
+            value: area,
+            onChanged: onAreaChanged,
+            onManual: onManual,
+          ),
+        ));
+      }
     } else if (location.fallbackWardId != null) {
+      // draft from an older version (ward fallback)
       children.addAll([
         JanCard(
           child: Row(children: [
@@ -855,14 +935,8 @@ class _IncidentLocationStep extends StatelessWidget {
         const SizedBox(height: JanSpace.xs),
         _ConfirmedRow(text: 'Ward chosen', onChange: onChange, changeLabel: 'Use the map instead'),
       ]);
-    } else if (wardMode) {
-      children.add(_WardFallback(
-        wards: wards,
-        loading: loadingWards,
-        onChosen: onWardChosen,
-        onBackToMap: onBackToMap,
-      ));
     } else if (location.detected != null) {
+      // ---- situations 1-3: location from the camera GPS / photo / GPS now
       final detected = location.detected!;
       children.addAll([
         IncidentMapPreview(point: detected.point),
@@ -887,10 +961,11 @@ class _IncidentLocationStep extends StatelessWidget {
             style: const TextStyle(color: JanColors.slate, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: JanSpace.xs),
-          FilledButton.tonalIcon(
+          FilledButton.icon(
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
             onPressed: onConfirmDetected,
             icon: const Icon(Icons.check_rounded),
-            label: const Text('Confirm Location'),
+            label: Text(AppStrings.of('loc_yes')),
           ),
           TextButton.icon(
             onPressed: onOpenMap,
@@ -899,44 +974,69 @@ class _IncidentLocationStep extends StatelessWidget {
           ),
         ],
       ]);
-    } else {
-      children.addAll([
-        JanCard(
-          borderColor: note != null ? JanColors.amber : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(children: [
-                const Icon(Icons.place_outlined, color: JanColors.navy),
-                const SizedBox(width: JanSpace.xs),
-                Expanded(
-                  child: Text(
-                    note ??
-                        (hasPhoto
-                            ? 'Show us where the problem is on the map.'
-                            : 'Add a photo first - if it was taken with your camera we can usually find the place for you.'),
-                    style: const TextStyle(color: JanColors.slate, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ]),
-              const SizedBox(height: JanSpace.sm),
-              FilledButton.tonalIcon(
-                onPressed: onOpenMap,
-                icon: const Icon(Icons.map_outlined),
-                label: const Text('Choose on map'),
+    } else if (hasPhoto) {
+      // ---- situation 4: the photo has no location
+      children.add(JanCard(
+        borderColor: JanColors.amber,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(note ?? AppStrings.of('loc_no_photo_location'),
+              style: const TextStyle(color: JanColors.slate, fontWeight: FontWeight.w600)),
+          const SizedBox(height: JanSpace.sm),
+          const BiText('loc_at_place_now'),
+          const SizedBox(height: JanSpace.sm),
+          Row(children: [
+            Expanded(
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                onPressed: locatingHere ? null : onAtThePlaceNow,
+                icon: locatingHere
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location_rounded),
+                label: Text(AppStrings.of('common_yes')),
               ),
-            ],
+            ),
+            const SizedBox(width: JanSpace.sm),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                onPressed: locatingHere ? null : onManual,
+                icon: const Icon(Icons.pin_drop_outlined),
+                label: Text(AppStrings.of('common_no')),
+              ),
+            ),
+          ]),
+          const SizedBox(height: JanSpace.xs),
+          Text(AppStrings.of('loc_camera_tip'), style: const TextStyle(color: JanColors.muted, fontSize: 12.5)),
+        ]),
+      ));
+    } else {
+      children.add(JanCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            const Icon(Icons.place_outlined, color: JanColors.navy),
+            const SizedBox(width: JanSpace.xs),
+            const Expanded(
+              child: Text('Add a photo first - if it was taken with your camera we can usually find the place for you.',
+                  style: TextStyle(color: JanColors.slate, fontWeight: FontWeight.w600)),
+            ),
+          ]),
+          const SizedBox(height: JanSpace.sm),
+          FilledButton.tonalIcon(
+            onPressed: onOpenMap,
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Choose on map'),
           ),
-        ),
-      ]);
+        ]),
+      ));
     }
 
-    if (!location.isConfirmed && !wardMode) {
+    if (!location.isConfirmed) {
       children.add(Align(
         alignment: Alignment.centerLeft,
-        child: TextButton(
-          onPressed: onUseWard,
-          child: const Text('Map not working? Choose your ward instead'),
+        child: TextButton.icon(
+          onPressed: onManual,
+          icon: const Icon(Icons.pin_drop_outlined, size: 18),
+          label: Text(AppStrings.of('loc_enter_pin')),
         ),
       ));
     }
@@ -964,58 +1064,4 @@ class _ConfirmedRow extends StatelessWidget {
           ),
         ],
       );
-}
-
-/// Ward fallback when the map cannot be used: the server stores an
-/// approximate ward location (WARD_FALLBACK).
-class _WardFallback extends StatelessWidget {
-  final List<Ward>? wards;
-  final bool loading;
-  final ValueChanged<Ward?> onChosen;
-  final VoidCallback onBackToMap;
-
-  const _WardFallback({required this.wards, required this.loading, required this.onChosen, required this.onBackToMap});
-
-  @override
-  Widget build(BuildContext context) {
-    return JanCard(
-      borderColor: JanColors.amber,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const JanBanner(
-            tone: JanBannerTone.warning,
-            icon: Icons.location_searching_rounded,
-            message: 'Choose the ward where the problem is. Officers will see an approximate location, '
-                'so please describe the exact spot in the description.',
-          ),
-          const SizedBox(height: JanSpace.md),
-          if (loading)
-            const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator())
-          else if (wards != null && wards!.isNotEmpty)
-            DropdownButtonFormField<Ward>(
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Ward where the problem is',
-                prefixIcon: Icon(Icons.map_outlined),
-              ),
-              items: wards!.map((w) => DropdownMenuItem(value: w, child: Text(w.name))).toList(),
-              onChanged: onChosen,
-            )
-          else
-            const Text('The ward list could not be loaded. Please try the map again.',
-                style: TextStyle(color: JanColors.muted)),
-          const SizedBox(height: JanSpace.xs),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onBackToMap,
-              icon: const Icon(Icons.map_outlined, size: 18),
-              label: const Text('Back to the map'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
