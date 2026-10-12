@@ -224,6 +224,36 @@ Also used since fix Phase 06: `settings` PLATFORM keys `maintenance_mode`, `main
 `maintenance_retry_after_minutes`, `announcement_text` (GAP-037); USER key `officer_availability_status`
 now read by auto-assignment (GAP-038); `wards.boundary_geojson` is editable by Admins with validation (GAP-020).
 
+## Location hierarchy (V34, V35 – real LGD areas)
+
+LGD codes are the primary keys, so re-importing a newer LGD download only updates rows
+(`database/tools/lgd_import/`). V35 seeds all states/districts and the pilot districts
+Gaya (196) and Ghaziabad (145).
+
+| Table | Key | Main columns | Notes |
+|---|---|---|---|
+| geo_states | state_code (LGD) | name, census_code | |
+| geo_districts | district_code (LGD) | state_code FK, name, **is_served** | is_served = complaints accepted; others are flagged OUT_OF_JURISDICTION |
+| geo_subdistricts | subdistrict_code | district_code FK, name | tehsil / anchal |
+| geo_blocks | block_code | district_code FK, name | development block (prakhand) |
+| local_bodies | local_body_code | name, area_kind RURAL/URBAN, body_type, state/district/block | Gram Panchayat, Nagar Nigam, Nagar Parishad … |
+| geo_villages | village_code | name, name_key, state/district/subdistrict/block, centre_latitude/longitude | revenue villages; name_key = lower-case letters/digits |
+| village_local_bodies | (village_code, local_body_code) | | village → GP or urban body (a few villages have two GPs) |
+| village_pincodes | (village_code, pincode) | | PIN → villages |
+| pincode_offices | office_id | pincode, office_name, district_code (matched), lat/lng | India Post directory |
+| ward_localities | ward_locality_id | ward_id FK, locality_name, locality_key, village_code | colony/mohalla → ward |
+| geo_data_imports | import_id | dataset, source, source_date, scope, row_count | load history |
+
+Changed tables:
+
+* **wards**: + local_body_code FK, lgd_ward_code (UQ), ward_number, centre_latitude/longitude;
+  name is unique per body (`uq_wards_body_name`) instead of globally. Legacy wards have local_body_code NULL.
+* **locations**: + pincode, landmark, locality, state_code, district_code, local_body_code,
+  village_code, ward_match (BOUNDARY / LOCALITY / CITIZEN / NEAREST / LEGACY).
+* **users**: + district_code, local_body_code (staff jurisdiction; ward_id = their ward).
+* **departments**: + district_code, local_body_code, generated scope_key; name unique per scope
+  (`uq_departments_name_scope`). Both NULL = serves every area.
+
 ---
 
 ## Decision notes (things this phase changed or resolved vs. the source documents)
