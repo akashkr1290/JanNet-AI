@@ -9,7 +9,8 @@
 # (packages/flutter_tools/lib/src/android/gradle_utils.dart and
 # FlutterExtension.kt at tag 3.47.1):
 #   Flutter 3.47.1 (flutter/.metadata revision 6655482e) - bundles Dart 3.13.1
-#   JDK 17        - Flutter's minimum and default Java for AGP >= 8.0
+#   JDK 21        - needed by maplibre_gl 0.27, which compiles its Android
+#                   code with source/target 21; the app module stays on 17
 #   compileSdk / targetSdk 36, minSdk 24, NDK 28.2.13676358
 #   Gradle 9.3.1 / AGP 9.1.0 / Kotlin 2.4.0 - pinned in flutter/android/*.gradle.kts
 #     and gradle-wrapper.properties (downloaded by the Gradle wrapper at first build).
@@ -17,7 +18,7 @@
 # build-tools revision it installs it itself (licenses are accepted and the SDK
 # is owned by the build user).
 
-FROM eclipse-temurin:17-jdk-jammy
+FROM eclipse-temurin:21-jdk-jammy
 
 ARG FLUTTER_VERSION=3.47.1
 ARG ANDROID_PLATFORM=android-36

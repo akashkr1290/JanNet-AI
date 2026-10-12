@@ -52,14 +52,17 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Set up Java 17
-        # The Android project (AGP 9.1, Gradle 9.3.1, JVM target 17) builds
-        # with JDK 17, the same as docker/Dockerfile.flutter-android
-        # (eclipse-temurin:17-jdk).
+      - name: Set up Java 21
+        # JDK 21, not 17: maplibre_gl 0.27 compiles its Android code with
+        # `source/target 21`, so a JDK 17 javac fails the APK build with
+        # "invalid source release: 21". The app module itself still targets
+        # 17 (flutter/android/app/build.gradle.kts), which a newer JDK
+        # compiles fine. Same JDK as docker/Dockerfile.flutter-android
+        # (eclipse-temurin:21-jdk).
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Flutter version
         run: flutter --version
