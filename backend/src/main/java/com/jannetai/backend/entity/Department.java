@@ -34,6 +34,27 @@ public class Department {
     @Column(name = "description", length = 300)
     private String description;
 
+    /**
+     * V34 area served: a whole district, or one Gram Panchayat / urban body.
+     * Both NULL = every area (the original departments). Routing
+     * (DepartmentAssignmentService) picks the most specific department for
+     * the complaint's area. Name is unique per area (uq_departments_name_scope).
+     */
+    @Column(name = "district_code", columnDefinition = "INT UNSIGNED")
+    private Integer districtCode;
+
+    @Column(name = "local_body_code", columnDefinition = "INT UNSIGNED")
+    private Integer localBodyCode;
+
+    /** Read-only, for names in DepartmentResponse (the codes above are what is written). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "district_code", insertable = false, updatable = false)
+    private GeoDistrict district;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "local_body_code", insertable = false, updatable = false)
+    private LocalBody localBody;
+
     /** FK added in V4, deliberately deferred at schema-creation time (V2 header comment). */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "head_user_id")

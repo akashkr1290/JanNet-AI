@@ -1,14 +1,25 @@
 package com.jannetai.backend.service.complaint;
 
+import com.jannetai.backend.client.google.GoogleMapsClient;
+import com.jannetai.backend.dto.complaint.IncidentArea;
 import com.jannetai.backend.dto.complaint.IncidentLocationRequest;
+import com.jannetai.backend.dto.geo.AreaMatchResponse;
+import com.jannetai.backend.dto.geo.DistrictRef;
+import com.jannetai.backend.dto.geo.LocalBodyRef;
+import com.jannetai.backend.dto.geo.VillageRef;
+import com.jannetai.backend.entity.GeoDistrict;
+import com.jannetai.backend.entity.GeoVillage;
+import com.jannetai.backend.entity.LocalBody;
 import com.jannetai.backend.entity.Location;
 import com.jannetai.backend.entity.Ward;
 import com.jannetai.backend.entity.enums.LocationSource;
 import com.jannetai.backend.repository.LocationRepository;
 import com.jannetai.backend.repository.WardRepository;
 import com.jannetai.backend.service.WardService;
+import com.jannetai.backend.service.geo.AreaResolver;
+import com.jannetai.backend.service.geo.GeoRepository;
 import com.jannetai.backend.storage.ExifGps;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +31,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * GPS Module subset actually needed by Phase 6 (SRS 15.5). What's
@@ -42,18 +55,44 @@ import java.util.List;
  * heatmaps exactly as before. The detected point, accuracy, photo time and
  * review flags ({@link LocationFlags}) are kept for staff.
  *
- * Still NOT implemented: street-address reverse geocoding (no geocoding
- * provider is integrated). The jurisdiction box
- * (app.geo.municipal-*) must be set to the real municipal boundary by the
- * operator; the default is a placeholder.
+ * V34 (location upgrade): every new complaint also gets its real area -
+ * LGD state, district, Gram Panchayat / urban body, village, PIN, address -
+ * via {@link #applyArea}: the codes the citizen confirmed in the app are
+ * checked against the LGD tables, or (older apps) worked out by
+ * {@link AreaResolver} from Google's address. Jurisdiction then means "the
+ * district is served" (geo_districts.is_served); the app.geo.municipal-*
+ * box is only the fallback when no district is served or none is known.
  */
 @Service
-@RequiredArgsConstructor
 public class LocationService {
 
     private final LocationRepository locationRepository;
     private final WardService wardService;
     private final WardRepository wardRepository; // audit GAP-008: boundaries for reverse geocoding
+    // V34 - null in the V33-era unit tests (3-argument constructor): area handling is then skipped.
+    private final GeoRepository geoRepository;
+    private final AreaResolver areaResolver;
+    private final GoogleMapsClient googleMapsClient;
+
+    /** V34: only to attach read-only GeoDistrict/LocalBody/GeoVillage references so the create response shows names. */
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
+    @Autowired
+    public LocationService(LocationRepository locationRepository, WardService wardService, WardRepository wardRepository,
+                           GeoRepository geoRepository, AreaResolver areaResolver, GoogleMapsClient googleMapsClient) {
+        this.locationRepository = locationRepository;
+        this.wardService = wardService;
+        this.wardRepository = wardRepository;
+        this.geoRepository = geoRepository;
+        this.areaResolver = areaResolver;
+        this.googleMapsClient = googleMapsClient;
+    }
+
+    /** V33 behaviour only (no LGD area) - kept for the existing unit tests. */
+    LocationService(LocationRepository locationRepository, WardService wardService, WardRepository wardRepository) {
+        this(locationRepository, wardService, wardRepository, null, null, null);
+    }
 
     @Value("${app.geo.municipal-min-latitude}")
     private BigDecimal minLatitude;
@@ -193,6 +232,14 @@ public class LocationService {
         Location location = wardFallback
                 ? buildWardFallback(wardId)
                 : build(latitude, longitude, wardId, source, null);
+        applyArea(location, request.area(), wardId != null && !wardFallback);
+        if (accuracy != null && accuracy.doubleValue() > lowAccuracyMeters
+                && "VERIFIED_BOUNDARY".equals(location.getLocationVerificationStatus())
+                && location.getSource() != LocationSource.MANUAL_PIN) {
+            // the GPS fix was too rough to trust the boundary result (could be the next ward)
+            location.setLocationVerificationStatus("REQUIRES_VERIFICATION");
+            location.setVerificationReason("LOW_GPS_ACCURACY");
+        }
         location.setDetectedLatitude(scale6(detectedLat));
         location.setDetectedLongitude(scale6(detectedLng));
         location.setAccuracyMeters(accuracy);
@@ -298,9 +345,13 @@ public class LocationService {
 
     private Location buildWardFallback(Long wardId) {
         Ward ward = wardService.requireActiveWardEntity(wardId);
-        double[] point = WardCentroid.of(ward.getBoundaryGeojson()).orElseGet(() -> new double[]{
-                minLatitude.add(maxLatitude).doubleValue() / 2,
-                minLongitude.add(maxLongitude).doubleValue() / 2});
+        double[] point = WardCentroid.of(ward.getBoundaryGeojson())
+                .or(() -> ward.getCentreLatitude() == null ? java.util.Optional.<double[]>empty() // V34: Admin-set ward centre
+                        : java.util.Optional.of(new double[]{ward.getCentreLatitude().doubleValue(),
+                        ward.getCentreLongitude().doubleValue()}))
+                .orElseGet(() -> new double[]{
+                        minLatitude.add(maxLatitude).doubleValue() / 2,
+                        minLongitude.add(maxLongitude).doubleValue() / 2});
         Location location = Location.builder()
                 .latitude(BigDecimal.valueOf(point[0]).setScale(6, java.math.RoundingMode.HALF_UP))
                 .longitude(BigDecimal.valueOf(point[1]).setScale(6, java.math.RoundingMode.HALF_UP))
@@ -313,17 +364,248 @@ public class LocationService {
     }
 
     /**
+     * V34 + V36: fills the area of a new complaint's location, decides
+     * jurisdiction by served district, and records whether the area is
+     * PROVEN (spec 2026-10-11). Called once from {@link #resolveIncident}.
+     *
+     * <ol>
+     *   <li>The boundaries say where the point is ({@link AreaResolver#resolvePoint}:
+     *       published ward / town / village / PIN polygons, Google names only
+     *       where no polygon covers the point).</li>
+     *   <li>The app sent codes (citizen confirmed "Is this place X?" or chose
+     *       from the lists): they are checked - the village must belong to the
+     *       body, a chosen ward to the same body - and stored. A wrong
+     *       combination is a 400, never silently changed. Codes that differ from
+     *       the boundaries are kept (the citizen confirmed the place) but marked
+     *       for verification.</li>
+     *   <li>No codes: the boundary area is stored when EXACT or LIKELY.</li>
+     *   <li>Ward: set automatically ONLY from a ward boundary (BOUNDARY). A ward
+     *       the citizen chose without a boundary to prove it is kept as CITIZEN
+     *       and the location is REQUIRES_VERIFICATION; a nearest / colony-name
+     *       ward is only stored as {@code suggestedWard}.</li>
+     * </ol>
+     *
+     * @param citizenChoseWard the request carried a wardId together with coordinates
+     */
+    void applyArea(Location location, IncidentArea area, boolean citizenChoseWard) {
+        if (geoRepository == null) {
+            return; // V33-era unit tests
+        }
+        location.setPincode(validPincode(area.pincode()));
+        location.setLandmark(trim(area.landmark(), 150));
+        location.setLocality(trim(area.locality(), 150));
+        if (area.formattedAddress() != null && !area.formattedAddress().isBlank()) {
+            location.setFormattedAddress(trim(area.formattedAddress(), 300));
+        }
+        boolean realPoint = location.getSource() != LocationSource.WARD_FALLBACK;
+        double lat = location.getLatitude().doubleValue();
+        double lng = location.getLongitude().doubleValue();
+
+        // 1. what the published boundaries (or, without them, names) say about the point
+        AreaMatchResponse found = realPoint && areaResolver != null ? areaResolver.resolvePoint(lat, lng) : null;
+        boolean foundTrusted = found != null && ("EXACT".equals(found.confidence()) || "LIKELY".equals(found.confidence()));
+        boolean byBoundary = found != null && "BOUNDARY".equals(found.areaSource());
+
+        LocalBodyRef body = null;
+        VillageRef village = null;
+        DistrictRef district = null;
+        String reason = null;
+        if (area.hasCodes()) {
+            // 2. the citizen's confirmed codes
+            if (area.localBodyCode() != null) {
+                body = geoRepository.localBody(area.localBodyCode())
+                        .orElseThrow(() -> new IllegalArgumentException("Unknown localBodyCode " + area.localBodyCode()));
+            }
+            if (area.villageCode() != null) {
+                village = geoRepository.village(area.villageCode())
+                        .orElseThrow(() -> new IllegalArgumentException("Unknown villageCode " + area.villageCode()));
+                if (body == null && village.localBodies().size() == 1) {
+                    body = village.localBodies().get(0);
+                }
+                LocalBodyRef chosen = body;
+                if (chosen != null && village.localBodies().stream().noneMatch(b -> b.code().equals(chosen.code()))) {
+                    throw new IllegalArgumentException("Village " + village.name() + " is not part of " + chosen.name());
+                }
+            }
+            Integer districtCode = village != null ? village.districtCode() : body != null ? body.districtCode() : null;
+            district = districtCode == null ? null : geoRepository.district(districtCode).orElse(null);
+            if (!byBoundary || found.localBody() == null) {
+                reason = "AREA_CHOSEN_BY_CITIZEN";
+            } else if (body != null && !body.code().equals(found.localBody().code())) {
+                reason = "AREA_DIFFERS_FROM_MAP";
+            }
+        } else if (found != null) {
+            // 3. no codes (older app): the resolver's area - not a district that was
+            // only guessed from the nearest post office
+            district = "POST_OFFICE".equals(found.areaSource()) ? null : found.district();
+            if (foundTrusted) {
+                body = found.localBody();
+                village = found.village();
+            }
+            if (location.getPincode() == null && found.pincode() != null) {
+                location.setPincode(found.pincode());
+            }
+            if (!byBoundary) {
+                reason = body != null ? "AREA_FROM_ADDRESS_NAMES" : "AREA_UNKNOWN";
+            }
+        }
+        if (location.getPincode() == null && byBoundary && found.pincode() != null) {
+            location.setPincode(found.pincode());
+        }
+
+        if (body != null) {
+            location.setLocalBodyCode(body.code());
+        }
+        if (village != null) {
+            location.setVillageCode(village.code());
+        }
+        if (district != null) {
+            location.setDistrictCode(district.code());
+            location.setStateCode(district.stateCode());
+        }
+
+        // 4. ward inside the body
+        Ward ward = location.getWard();
+        Long provenWardId = found != null && found.ward() != null ? found.ward().wardId() : null;
+        Long suggestedWardId = found != null && found.suggestedWard() != null ? found.suggestedWard().wardId() : null;
+        if (ward != null && ward.getLocalBodyCode() != null) {
+            if (body == null) {
+                // a ward was chosen without codes: the ward tells the body
+                location.setLocalBodyCode(ward.getLocalBodyCode());
+                geoRepository.localBody(ward.getLocalBodyCode()).map(LocalBodyRef::districtCode)
+                        .flatMap(geoRepository::district).ifPresent(d -> {
+                            location.setDistrictCode(d.code());
+                            location.setStateCode(d.stateCode());
+                        });
+            } else if (!ward.getLocalBodyCode().equals(body.code())) {
+                throw new IllegalArgumentException("Ward " + ward.getName() + " is not part of " + body.name());
+            }
+            if (provenWardId != null && provenWardId.equals(ward.getWardId())) {
+                location.setWardMatch("BOUNDARY"); // the citizen picked the ward the map proves
+            } else {
+                location.setWardMatch(citizenChoseWard || !realPoint ? "CITIZEN" : "LEGACY");
+                if (reason == null) {
+                    reason = provenWardId != null ? "WARD_DIFFERS_FROM_MAP"
+                            : (!realPoint ? "NO_COORDINATES" : "WARD_CHOSEN_BY_CITIZEN");
+                }
+                if (provenWardId != null) {
+                    suggestedWardId = provenWardId;
+                }
+            }
+        } else if (ward == null && location.getLocalBodyCode() != null && realPoint) {
+            Integer bodyCode = location.getLocalBodyCode();
+            if (provenWardId != null && Objects.equals(found.ward().localBodyCode(), bodyCode)) {
+                location.setWard(wardRepository.findById(provenWardId).orElse(null));
+                location.setWardMatch(location.getWard() != null ? "BOUNDARY" : null);
+            } else if (areaResolver != null) {
+                Optional<AreaResolver.WardHit> hit = areaResolver.findWard(bodyCode, lat, lng, List.of());
+                hit.ifPresent(h -> {
+                    location.setWard(wardRepository.findById(h.wardId()).orElse(null));
+                    location.setWardMatch(location.getWard() != null ? "BOUNDARY" : null);
+                });
+            }
+            if (location.getWard() == null && reason == null && !geoRepository.wardsOfBody(bodyCode).isEmpty()) {
+                reason = "NO_WARD_BOUNDARY"; // the body has wards, but no map proves which one
+            }
+        } else if (ward != null) {
+            location.setWardMatch("LEGACY");
+        }
+        if (!realPoint && reason == null) {
+            reason = "NO_COORDINATES";
+        }
+        if (location.getLocalBodyCode() == null && location.getWard() == null && reason == null) {
+            reason = "AREA_UNKNOWN";
+        }
+        if (suggestedWardId != null && (location.getWard() == null || !suggestedWardId.equals(location.getWard().getWardId()))) {
+            location.setSuggestedWard(wardRepository.findById(suggestedWardId).orElse(null));
+        }
+        location.setLocationVerificationStatus(reason == null ? "VERIFIED_BOUNDARY" : "REQUIRES_VERIFICATION");
+        location.setVerificationReason(reason);
+
+        if (entityManager != null) {
+            // names for LocationResponse right after create (the columns themselves are written via the codes)
+            if (location.getDistrictCode() != null) {
+                location.setDistrict(entityManager.getReference(GeoDistrict.class, location.getDistrictCode()));
+            }
+            if (location.getLocalBodyCode() != null) {
+                location.setLocalBody(entityManager.getReference(LocalBody.class, location.getLocalBodyCode()));
+            }
+            if (location.getVillageCode() != null) {
+                location.setVillage(entityManager.getReference(GeoVillage.class, location.getVillageCode()));
+            }
+        }
+
+        // jurisdiction: the served districts decide once any is configured
+        if (location.getDistrictCode() != null && geoRepository.anyDistrictServed()) {
+            boolean served = geoRepository.district(location.getDistrictCode()).map(DistrictRef::served).orElse(false);
+            location.setOutOfJurisdiction(!served);
+        }
+    }
+
+    /**
+     * V36 verification queue: staff confirm or correct the ward (and body) of a
+     * complaint whose location was REQUIRES_VERIFICATION. The ward must be an
+     * active ward; its body becomes the location's body. Status STAFF_VERIFIED,
+     * ward_match STAFF. Called by ComplaintService#verifyLocation.
+     */
+    @Transactional
+    public Location verifyByStaff(Location location, Long wardId) {
+        if (wardId != null) {
+            Ward ward = wardService.requireActiveWardEntity(wardId);
+            location.setWard(ward);
+            location.setWardMatch("STAFF");
+            if (ward.getLocalBodyCode() != null && geoRepository != null) {
+                location.setLocalBodyCode(ward.getLocalBodyCode());
+                geoRepository.localBody(ward.getLocalBodyCode()).map(LocalBodyRef::districtCode)
+                        .flatMap(geoRepository::district).ifPresent(d -> {
+                            location.setDistrictCode(d.code());
+                            location.setStateCode(d.stateCode());
+                            if (geoRepository.anyDistrictServed()) {
+                                location.setOutOfJurisdiction(!d.served());
+                            }
+                        });
+            }
+        }
+        location.setSuggestedWard(null);
+        location.setLocationVerificationStatus("STAFF_VERIFIED");
+        location.setVerificationReason(null);
+        return locationRepository.save(location);
+    }
+
+    private static String validPincode(String pincode) {
+        if (pincode == null) {
+            return null;
+        }
+        String p = pincode.replace(" ", "");
+        if (!p.matches("[1-9][0-9]{5}")) {
+            throw new IllegalArgumentException("pincode must be a 6-digit Indian PIN code");
+        }
+        return p;
+    }
+
+    private static String trim(String value, int max) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String v = value.trim();
+        return v.length() > max ? v.substring(0, max) : v;
+    }
+
+    /**
      * Audit GAP-008: reverse-geocodes a GPS point to an active ward using the
      * wards' boundary GeoJSON (point-in-polygon, then nearest ward within
      * app.geo.nearest-ward-max-meters). Wards without a boundary are skipped;
      * returns null when no ward matches - the complaint is still accepted.
      */
     Ward resolveWard(double latitude, double longitude) {
-        List<Ward> wards = wardRepository.findByIsActiveTrueOrderByNameAsc();
+        // V34: only legacy wards (no local body) are searched across the whole
+        // deployment; LGD wards are searched within their body (applyArea).
+        List<Ward> wards = wardRepository.findByLocalBodyCodeIsNullAndIsActiveTrueOrderByNameAsc();
         List<WardLocator.WardShape> shapes = WardLocator.shapesOf(
                 wards.stream().map(Ward::getWardId).toList(),
                 wards.stream().map(Ward::getBoundaryGeojson).toList());
-        return WardLocator.locate(shapes, latitude, longitude, nearestWardMaxMeters)
+        // V36 (spec 2026-10-11): only a boundary that CONTAINS the point assigns a ward
+        return WardLocator.locate(shapes, latitude, longitude, 0)
                 .flatMap(id -> wards.stream().filter(w -> w.getWardId().equals(id)).findFirst())
                 .orElse(null);
     }

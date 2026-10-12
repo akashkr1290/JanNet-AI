@@ -25,4 +25,15 @@ public interface WardRepository extends JpaRepository<Ward, Long> {
     java.util.Optional<Ward> findFirstByCode(String code);
 
     List<Ward> findAllByOrderByNameAsc();
+
+    /** V34: wards of one Gram Panchayat / urban body (Admin list, uniqueness per body). */
+    List<Ward> findByLocalBodyCodeOrderByNameAsc(Integer localBodyCode);
+
+    java.util.Optional<Ward> findFirstByLocalBodyCodeAndName(Integer localBodyCode, String name);
+
+    /** V34: legacy wards only (no body) - the old flat ward list. */
+    List<Ward> findByLocalBodyCodeIsNullAndIsActiveTrueOrderByNameAsc();
+
+    /** V36: Admin ward list without a body filter - legacy wards only (body wards are listed per body). */
+    List<Ward> findByLocalBodyCodeIsNullOrderByNameAsc();
 }

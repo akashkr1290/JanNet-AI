@@ -24,6 +24,8 @@ import java.math.BigDecimal;
  * @param submissionDistanceMeters optional distance between the incident point and the
  *                                 citizen's position when submitting (the position itself
  *                                 is never sent or stored)
+ * @param area                     V34: address + LGD village / local body confirmed in the app
+ *                                 ({@link IncidentArea#NONE} for older clients)
  */
 public record IncidentLocationRequest(
         BigDecimal latitude,
@@ -35,12 +37,27 @@ public record IncidentLocationRequest(
         String capturedAt,
         BigDecimal detectedLatitude,
         BigDecimal detectedLongitude,
-        Double submissionDistanceMeters
+        Double submissionDistanceMeters,
+        IncidentArea area
 ) {
+    public IncidentLocationRequest {
+        area = area == null ? IncidentArea.NONE : area;
+    }
+
+    /** V33 shape (no area) - older call sites and tests. */
+    public IncidentLocationRequest(BigDecimal latitude, BigDecimal longitude, Long wardId, LocationSource source,
+                                   Boolean confirmed, Double accuracyMeters, String capturedAt,
+                                   BigDecimal detectedLatitude, BigDecimal detectedLongitude,
+                                   Double submissionDistanceMeters) {
+        this(latitude, longitude, wardId, source, confirmed, accuracyMeters, capturedAt, detectedLatitude,
+                detectedLongitude, submissionDistanceMeters, IncidentArea.NONE);
+    }
+
     /** What clients before V33 sent: coordinates (GPS at screen open), ward, source. */
     public static IncidentLocationRequest legacy(BigDecimal latitude, BigDecimal longitude, Long wardId,
                                                  LocationSource source) {
-        return new IncidentLocationRequest(latitude, longitude, wardId, source, null, null, null, null, null, null);
+        return new IncidentLocationRequest(latitude, longitude, wardId, source, null, null, null, null, null, null,
+                IncidentArea.NONE);
     }
 
     public boolean isConfirmed() {

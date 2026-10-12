@@ -30,7 +30,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -52,6 +54,7 @@ class DepartmentAssignmentServiceTest {
     @Mock private StatusHistoryRepository statusHistoryRepository;
     @Mock private AuditService auditService;
     @Mock private NotificationService notificationService;
+    @Mock private AssignmentHistoryService assignmentHistory;
 
     private DepartmentAssignmentService service;
 
@@ -103,6 +106,31 @@ class DepartmentAssignmentServiceTest {
         assertThat(history.getValue().getActorType()).isEqualTo(ActorType.SYSTEM);
         assertThat(history.getValue().getReason())
                 .isEqualTo("Routed to Sanitation - awaiting Department Head assignment of a Government Officer");
+    }
+
+    @Test
+    void routingWritesAnAssignmentHistoryRow() {
+        ReflectionTestUtils.setField(service, "assignmentHistory", assignmentHistory);
+        Department publicWorks = Department.builder().departmentId(1L).name("Public Works").isActive(true).build();
+        Complaint withRule = verifiedComplaint(ComplaintCategory.POTHOLE);
+        when(routingRuleRepository.findCurrentActiveRule(ComplaintCategory.POTHOLE))
+                .thenReturn(Optional.of(RoutingRule.builder().routingRuleId(77L).department(publicWorks).build()));
+
+        service.routeToDepartment(withRule);
+
+        verify(assignmentHistory).record(eq(withRule), eq(publicWorks), isNull(), eq("RULE"), eq(77L),
+                contains("POTHOLE"), isNull());
+
+        // no rule for the category -> the fallback department, recorded as FALLBACK
+        Department triage = Department.builder().departmentId(2L).name("General Triage").isActive(true).build();
+        Complaint noRule = verifiedComplaint(ComplaintCategory.GARBAGE_OVERFLOW);
+        when(routingRuleRepository.findCurrentActiveRule(ComplaintCategory.GARBAGE_OVERFLOW)).thenReturn(Optional.empty());
+        when(departmentRepository.findByNameAndIsActiveTrue("General Triage")).thenReturn(Optional.of(triage));
+
+        service.routeToDepartment(noRule);
+
+        verify(assignmentHistory).record(eq(noRule), eq(triage), isNull(), eq("FALLBACK"), isNull(),
+                contains("GARBAGE_OVERFLOW"), isNull());
     }
 
     @Test

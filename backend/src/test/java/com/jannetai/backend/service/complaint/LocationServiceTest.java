@@ -49,7 +49,7 @@ class LocationServiceTest {
         ReflectionTestUtils.setField(service, "maxLongitude", new BigDecimal("97.4"));
         ReflectionTestUtils.setField(service, "nearestWardMaxMeters", 500.0);
         lenient().when(locationRepository.save(any(Location.class))).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(wardRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(List.of(noBoundary, west, east));
+        lenient().when(wardRepository.findByLocalBodyCodeIsNullAndIsActiveTrueOrderByNameAsc()).thenReturn(List.of(noBoundary, west, east));
     }
 
     private Location gps(String lat, String lng) {
@@ -63,9 +63,10 @@ class LocationServiceTest {
     }
 
     @Test
-    void pointJustOutsideEveryBoundaryFallsBackToTheNearestWard() {
-        // ~220 m north of the east ward's top edge (13.00)
-        assertThat(gps("13.002", "77.65").getWard()).isSameAs(east);
+    void pointJustOutsideEveryBoundaryGetsNoWard() {
+        // ~220 m north of the east ward's top edge (13.00). V36 (spec 2026-10-11):
+        // a ward is assigned only from a boundary that contains the point.
+        assertThat(gps("13.002", "77.65").getWard()).isNull();
     }
 
     @Test
@@ -81,7 +82,7 @@ class LocationServiceTest {
                 LocationSource.MANUAL_PIN, null);
 
         assertThat(location.getWard()).isSameAs(west);
-        verify(wardRepository, never()).findByIsActiveTrueOrderByNameAsc();
+        verify(wardRepository, never()).findByLocalBodyCodeIsNullAndIsActiveTrueOrderByNameAsc();
     }
 
     @Test
@@ -90,7 +91,7 @@ class LocationServiceTest {
 
         assertThat(location.getOutOfJurisdiction()).isTrue();
         assertThat(location.getWard()).isNull();
-        verify(wardRepository, never()).findByIsActiveTrueOrderByNameAsc();
+        verify(wardRepository, never()).findByLocalBodyCodeIsNullAndIsActiveTrueOrderByNameAsc();
     }
 
     // ---- V33: incident location (where the problem is) != submission location ----

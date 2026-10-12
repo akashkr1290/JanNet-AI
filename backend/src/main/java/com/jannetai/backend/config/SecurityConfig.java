@@ -130,6 +130,10 @@ public class SecurityConfig {
                         // notifications/preferences via principal.getUser(), never a
                         // path/query id) - same division of responsibility as /users/me.
                         .requestMatchers("/api/v1/notifications/**").authenticated()
+                        // Location upgrade (V34): GeoController - map search / address /
+                        // LGD lists. Never public: autocomplete, places and reverse spend
+                        // the Google quota (GoogleQuota), so only logged-in users may call.
+                        .requestMatchers("/api/v1/geo/**").authenticated()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class)
