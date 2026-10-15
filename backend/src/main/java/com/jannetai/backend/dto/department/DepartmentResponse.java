@@ -12,7 +12,10 @@ public record DepartmentResponse(
         Integer districtCode,
         String districtName,
         Integer localBodyCode,
-        String localBodyName
+        String localBodyName,
+        // V37 development block served (null = not a block department)
+        Integer blockCode,
+        String blockName
 ) {
     public static DepartmentResponse from(Department d) {
         return new DepartmentResponse(
@@ -24,7 +27,9 @@ public record DepartmentResponse(
                 d.getDistrictCode(),
                 d.getDistrict() != null ? d.getDistrict().getName() : null,
                 d.getLocalBodyCode(),
-                d.getLocalBody() != null ? d.getLocalBody().getName() : null
+                d.getLocalBody() != null ? d.getLocalBody().getName() : null,
+                d.getBlockCode(),
+                d.getBlock() != null ? d.getBlock().getName() : null
         );
     }
 }

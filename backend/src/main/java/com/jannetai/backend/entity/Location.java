@@ -72,6 +72,10 @@ public class Location {
     @Column(name = "village_code", columnDefinition = "INT UNSIGNED")
     private Integer villageCode;
 
+    /** V37: development block of the village / Gram Panchayat; null in a town or when unknown. */
+    @Column(name = "block_code", columnDefinition = "INT UNSIGNED")
+    private Integer blockCode;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "district_code", insertable = false, updatable = false)
     private GeoDistrict district;
@@ -83,6 +87,10 @@ public class Location {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "village_code", insertable = false, updatable = false)
     private GeoVillage village;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "block_code", insertable = false, updatable = false)
+    private GeoBlock block;
 
     /**
      * V34: how the ward was found - BOUNDARY (point inside a published ward

@@ -4,9 +4,11 @@ import com.jannetai.backend.client.google.GoogleMapsClient;
 import com.jannetai.backend.dto.complaint.IncidentArea;
 import com.jannetai.backend.dto.complaint.IncidentLocationRequest;
 import com.jannetai.backend.dto.geo.AreaMatchResponse;
+import com.jannetai.backend.dto.geo.BlockRef;
 import com.jannetai.backend.dto.geo.DistrictRef;
 import com.jannetai.backend.dto.geo.LocalBodyRef;
 import com.jannetai.backend.dto.geo.VillageRef;
+import com.jannetai.backend.entity.GeoBlock;
 import com.jannetai.backend.entity.GeoDistrict;
 import com.jannetai.backend.entity.GeoVillage;
 import com.jannetai.backend.entity.LocalBody;
@@ -521,6 +523,7 @@ public class LocationService {
         }
         location.setLocationVerificationStatus(reason == null ? "VERIFIED_BOUNDARY" : "REQUIRES_VERIFICATION");
         location.setVerificationReason(reason);
+        applyBlock(location, village, body);
 
         if (entityManager != null) {
             // names for LocationResponse right after create (the columns themselves are written via the codes)
@@ -564,12 +567,35 @@ public class LocationService {
                                 location.setOutOfJurisdiction(!d.served());
                             }
                         });
+                applyBlock(location, null, null);
             }
         }
         location.setSuggestedWard(null);
         location.setLocationVerificationStatus("STAFF_VERIFIED");
         location.setVerificationReason(null);
         return locationRepository.save(location);
+    }
+
+    /**
+     * V37: stores the development block of the location's village / body
+     * ({@link AreaResolver#blockOf}: none in a town). {@code village} /
+     * {@code body} are the refs already loaded, or null to load them from the
+     * location's codes; a body that no longer matches the code is reloaded.
+     */
+    private void applyBlock(Location location, VillageRef village, LocalBodyRef body) {
+        Integer villageCode = location.getVillageCode();
+        Integer bodyCode = location.getLocalBodyCode();
+        VillageRef v = villageCode == null ? null
+                : village != null && villageCode.equals(village.code()) ? village
+                : geoRepository.village(villageCode).orElse(null);
+        LocalBodyRef b = bodyCode == null ? null
+                : body != null && bodyCode.equals(body.code()) ? body
+                : geoRepository.localBody(bodyCode).orElse(null);
+        Integer blockCode = AreaResolver.blockOf(geoRepository, v, b).map(BlockRef::code).orElse(null);
+        location.setBlockCode(blockCode);
+        // name for LocationResponse (the column itself is written via the code)
+        location.setBlock(blockCode != null && entityManager != null
+                ? entityManager.getReference(GeoBlock.class, blockCode) : null);
     }
 
     private static String validPincode(String pincode) {

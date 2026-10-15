@@ -16,16 +16,27 @@ import jakarta.validation.constraints.Size;
  * district is taken from the body. Complaints of that area are routed here
  * when the routing rule names a department of the same name
  * (DepartmentAssignmentService#forArea).
+ *
+ * V37: {@code blockCode} - the department serves one development block
+ * (state -> district -> block in Admin). The district is taken from the
+ * block; a block cannot be combined with a local body.
  */
 public record DepartmentUpsertRequest(
         @NotBlank @Size(max = 100) String name,
         @Size(max = 300) String description,
         Long headUserId,
         Integer districtCode,
-        Integer localBodyCode
+        Integer localBodyCode,
+        Integer blockCode
 ) {
     /** Before V34 (no area) - existing callers and tests. */
     public DepartmentUpsertRequest(String name, String description, Long headUserId) {
-        this(name, description, headUserId, null, null);
+        this(name, description, headUserId, null, null, null);
+    }
+
+    /** V34 shape (no block) - existing callers and tests. */
+    public DepartmentUpsertRequest(String name, String description, Long headUserId, Integer districtCode,
+                                   Integer localBodyCode) {
+        this(name, description, headUserId, districtCode, localBodyCode, null);
     }
 }

@@ -22,6 +22,8 @@ import java.util.List;
  * V36 adds whether that area is proven: {@code locationVerificationStatus}
  * (VERIFIED_BOUNDARY / REQUIRES_VERIFICATION / STAFF_VERIFIED), the
  * {@code verificationReason} and a {@code suggestedWard*} staff may confirm.
+ *
+ * V37 adds the development block ({@code blockCode}, {@code blockName}).
  */
 public record LocationResponse(
         Long locationId,
@@ -54,7 +56,9 @@ public record LocationResponse(
         String locationVerificationStatus,
         String verificationReason,
         Long suggestedWardId,
-        String suggestedWardName
+        String suggestedWardName,
+        Integer blockCode,
+        String blockName
 ) {
     public static LocationResponse from(Location location) {
         return new LocationResponse(
@@ -88,7 +92,9 @@ public record LocationResponse(
                 location.getLocationVerificationStatus(),
                 location.getVerificationReason(),
                 location.getSuggestedWard() != null ? location.getSuggestedWard().getWardId() : null,
-                location.getSuggestedWard() != null ? location.getSuggestedWard().getName() : null
+                location.getSuggestedWard() != null ? location.getSuggestedWard().getName() : null,
+                location.getBlockCode(),
+                location.getBlock() != null ? location.getBlock().getName() : null
         );
     }
 }

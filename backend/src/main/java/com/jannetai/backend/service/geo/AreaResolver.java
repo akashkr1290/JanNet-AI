@@ -5,6 +5,7 @@ import com.jannetai.backend.client.google.GoogleMapsClient;
 import com.jannetai.backend.client.osm.NominatimClient;
 import com.jannetai.backend.dto.geo.AreaMatchResponse;
 import com.jannetai.backend.dto.geo.AreaRef;
+import com.jannetai.backend.dto.geo.BlockRef;
 import com.jannetai.backend.dto.geo.DistrictRef;
 import com.jannetai.backend.dto.geo.GeoAddressResponse;
 import com.jannetai.backend.dto.geo.LocalBodyRef;
@@ -29,7 +30,7 @@ import java.util.StringJoiner;
 
 /**
  * Works out WHICH government area a point belongs to: state -> district ->
- * Gram Panchayat / urban body -> village -> ward (+ PIN).
+ * block -> Gram Panchayat / urban body -> village -> ward (+ PIN).
  *
  * <p>Called by:
  * <ul>
@@ -193,7 +194,27 @@ public class AreaResolver {
         }
         List<LocalBodyRef> bodyChoices = body == null && village != null ? village.localBodies() : List.of();
         return Optional.of(new AreaMatchResponse(state, district, body, village, ward, ward != null ? "BOUNDARY" : null,
-                wardChoices, List.of(), bodyChoices, "EXACT", pincode, "BOUNDARY", suggested, wardVerification));
+                wardChoices, List.of(), bodyChoices, "EXACT", pincode, "BOUNDARY", suggested, wardVerification)
+                .withBlock(blockOf(geo, village, body).orElse(null)));
+    }
+
+    /**
+     * V37: the development block of an area. A town (URBAN body) is not part of
+     * a block, so none. Otherwise the village's own LGD block, else the Gram
+     * Panchayat's block (geo_import sets both from LGD villages_by_blocks).
+     * Used here and by LocationService, which stores it on the complaint.
+     */
+    public static Optional<BlockRef> blockOf(GeoRepository geo, VillageRef village, LocalBodyRef body) {
+        if (body != null && "URBAN".equals(body.kind())) {
+            return Optional.empty();
+        }
+        if (village != null && village.blockCode() != null) {
+            return geo.block(village.blockCode());
+        }
+        if (body != null && "RURAL".equals(body.kind())) {
+            return geo.blockOfBody(body.code());
+        }
+        return Optional.empty();
     }
 
     /**
@@ -374,7 +395,8 @@ public class AreaResolver {
         return new AreaMatchResponse(state, district, body, village, ward, ward != null ? "BOUNDARY" : null, wardChoices,
                 villageChoices.subList(0, Math.min(40, villageChoices.size())), bodyChoices, confidence,
                 address != null ? address.pincode() : null, source, suggested,
-                ward != null ? "VERIFIED_BOUNDARY" : wardChoices.isEmpty() ? null : "REQUIRES_VERIFICATION");
+                ward != null ? "VERIFIED_BOUNDARY" : wardChoices.isEmpty() ? null : "REQUIRES_VERIFICATION")
+                .withBlock(blockOf(geo, village, body).orElse(null));
     }
 
     private List<VillageRef> pinVillages(String pincode, List<VillageRef> districtVillages) {

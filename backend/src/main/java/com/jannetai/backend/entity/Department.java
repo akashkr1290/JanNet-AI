@@ -46,6 +46,13 @@ public class Department {
     @Column(name = "local_body_code", columnDefinition = "INT UNSIGNED")
     private Integer localBodyCode;
 
+    /**
+     * V37: the department serves one development block (districtCode is then
+     * the block's district and localBodyCode is NULL - chk_departments_block_scope).
+     */
+    @Column(name = "block_code", columnDefinition = "INT UNSIGNED")
+    private Integer blockCode;
+
     /** Read-only, for names in DepartmentResponse (the codes above are what is written). */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "district_code", insertable = false, updatable = false)
@@ -54,6 +61,10 @@ public class Department {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "local_body_code", insertable = false, updatable = false)
     private LocalBody localBody;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "block_code", insertable = false, updatable = false)
+    private GeoBlock block;
 
     /** FK added in V4, deliberately deferred at schema-creation time (V2 header comment). */
     @ManyToOne(fetch = FetchType.LAZY)

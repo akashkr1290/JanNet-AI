@@ -3,6 +3,7 @@ package com.jannetai.backend.controller;
 import com.jannetai.backend.client.google.GoogleMapsClient;
 import com.jannetai.backend.client.google.PlaceSuggestion;
 import com.jannetai.backend.dto.geo.AreaRef;
+import com.jannetai.backend.dto.geo.BlockRef;
 import com.jannetai.backend.dto.geo.DistrictRef;
 import com.jannetai.backend.dto.geo.GeoAddressResponse;
 import com.jannetai.backend.dto.geo.LocalBodyRef;
@@ -136,6 +137,13 @@ public class GeoController {
     @PreAuthorize("isAuthenticated()")
     public List<DistrictRef> districts(@RequestParam(required = false) Integer stateCode) {
         return areas.districts(stateCode);
+    }
+
+    /** V37: development blocks (prakhand) of a district, by name; 404 for an unknown district. */
+    @GetMapping("/blocks")
+    @PreAuthorize("isAuthenticated()")
+    public List<BlockRef> blocks(@RequestParam int districtCode) {
+        return areas.blocks(districtCode);
     }
 
     /** {@code kind}: RURAL (Gram Panchayats) or URBAN (Nagar Nigam / Parishad ...), optional. */

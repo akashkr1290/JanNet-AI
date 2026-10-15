@@ -1,6 +1,7 @@
 package com.jannetai.backend.service.geo;
 
 import com.jannetai.backend.dto.geo.AreaRef;
+import com.jannetai.backend.dto.geo.BlockRef;
 import com.jannetai.backend.dto.geo.DistrictRef;
 import com.jannetai.backend.dto.geo.LocalBodyRef;
 import com.jannetai.backend.dto.geo.PincodeBodyRef;
@@ -125,6 +126,31 @@ public class GeoRepository {
                 rs.getString("body_type"), rs.getObject("district_code", Integer.class));
     }
 
+    // ---------------------------------------------------------------- blocks (V37)
+
+    private static final String BLOCK_SQL = "SELECT b.block_code, b.name, b.district_code FROM geo_blocks b ";
+
+    /** Development blocks of a district, by name - the Admin department picker. */
+    public List<BlockRef> blocks(int districtCode) {
+        return jdbc.query(BLOCK_SQL + "WHERE b.district_code = :d ORDER BY b.name", Map.of("d", districtCode),
+                GeoRepository::block);
+    }
+
+    public Optional<BlockRef> block(int blockCode) {
+        return jdbc.query(BLOCK_SQL + "WHERE b.block_code = :b", Map.of("b", blockCode), GeoRepository::block)
+                .stream().findFirst();
+    }
+
+    /** The block of a Gram Panchayat (local_bodies.block_code, set by geo_import); empty for towns. */
+    public Optional<BlockRef> blockOfBody(int localBodyCode) {
+        return jdbc.query(BLOCK_SQL + "JOIN local_bodies lb ON lb.block_code = b.block_code WHERE lb.local_body_code = :c",
+                Map.of("c", localBodyCode), GeoRepository::block).stream().findFirst();
+    }
+
+    private static BlockRef block(ResultSet rs, int i) throws SQLException {
+        return new BlockRef(rs.getInt("block_code"), rs.getString("name"), rs.getInt("district_code"));
+    }
+
     // ---------------------------------------------------------------- villages
 
     /**
@@ -154,7 +180,7 @@ public class GeoRepository {
 
     private List<VillageRef> loadVillages(String where, MapSqlParameterSource params) {
         String sql = "SELECT v.village_code, v.name, v.district_code, v.centre_latitude, v.centre_longitude, "
-                + "s.name AS sub_name, b.name AS block_name, "
+                + "s.name AS sub_name, v.block_code, b.name AS block_name, "
                 + "lb.local_body_code, lb.name AS body_name, lb.area_kind, lb.body_type, lb.district_code AS body_district "
                 + "FROM geo_villages v "
                 + "JOIN geo_subdistricts s ON s.subdistrict_code = v.subdistrict_code "
@@ -171,6 +197,7 @@ public class GeoRepository {
                 row.district = rs.getInt("district_code");
                 row.sub = rs.getString("sub_name");
                 row.block = rs.getString("block_name");
+                row.blockCode = rs.getObject("block_code", Integer.class);
                 row.lat = rs.getBigDecimal("centre_latitude");
                 row.lng = rs.getBigDecimal("centre_longitude");
             }
@@ -182,7 +209,7 @@ public class GeoRepository {
         });
         List<VillageRef> out = new ArrayList<>(rows.size());
         rows.forEach((code, r) -> out.add(new VillageRef(code, r.name, r.district, r.sub, r.block,
-                List.copyOf(r.bodies), r.lat, r.lng)));
+                List.copyOf(r.bodies), r.lat, r.lng, r.blockCode)));
         return out;
     }
 
@@ -191,6 +218,7 @@ public class GeoRepository {
         int district;
         String sub;
         String block;
+        Integer blockCode;
         BigDecimal lat;
         BigDecimal lng;
         final List<LocalBodyRef> bodies = new ArrayList<>();

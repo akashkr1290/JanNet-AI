@@ -27,6 +27,9 @@ import java.util.List;
  * @param wardVerification V36: VERIFIED_BOUNDARY when {@code ward} was found by
  *                   boundary; REQUIRES_VERIFICATION when the body has wards but
  *                   none was proven; null when the body has no ward list
+ * @param block      V37: development block of the village (or of the Gram
+ *                   Panchayat when no village is known); null in a town (urban
+ *                   bodies are not part of a block) or when LGD gives none
  */
 public record AreaMatchResponse(
         AreaRef state,
@@ -42,8 +45,24 @@ public record AreaMatchResponse(
         String pincode,
         String areaSource,
         WardRef suggestedWard,
-        String wardVerification
+        String wardVerification,
+        BlockRef block
 ) {
+    /** V36 shape (no block) - existing callers and tests. */
+    public AreaMatchResponse(AreaRef state, DistrictRef district, LocalBodyRef localBody, VillageRef village, WardRef ward,
+                             String wardMatch, List<WardRef> wardChoices, List<VillageRef> villageChoices,
+                             List<LocalBodyRef> localBodyChoices, String confidence, String pincode, String areaSource,
+                             WardRef suggestedWard, String wardVerification) {
+        this(state, district, localBody, village, ward, wardMatch, wardChoices, villageChoices, localBodyChoices,
+                confidence, pincode, areaSource, suggestedWard, wardVerification, null);
+    }
+
+    /** The same area with its V37 development block (AreaResolver#blockOf). */
+    public AreaMatchResponse withBlock(BlockRef block) {
+        return new AreaMatchResponse(state, district, localBody, village, ward, wardMatch, wardChoices, villageChoices,
+                localBodyChoices, confidence, pincode, areaSource, suggestedWard, wardVerification, block);
+    }
+
     /** Pre-V36 shape: an area worked out from names. */
     public AreaMatchResponse(AreaRef state, DistrictRef district, LocalBodyRef localBody, VillageRef village, WardRef ward,
                              String wardMatch, List<WardRef> wardChoices, List<VillageRef> villageChoices,

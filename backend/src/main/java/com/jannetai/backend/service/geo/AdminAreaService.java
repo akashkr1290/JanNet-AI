@@ -3,6 +3,7 @@ package com.jannetai.backend.service.geo;
 import com.jannetai.backend.client.google.GoogleAddress;
 import com.jannetai.backend.client.google.GoogleMapsClient;
 import com.jannetai.backend.dto.geo.AreaRef;
+import com.jannetai.backend.dto.geo.BlockRef;
 import com.jannetai.backend.dto.geo.DistrictRef;
 import com.jannetai.backend.dto.geo.LocalBodyRef;
 import com.jannetai.backend.dto.geo.PincodeAreaResponse;
@@ -52,6 +53,12 @@ public class AdminAreaService {
 
     public DistrictRef district(int code) {
         return geo.district(code).orElseThrow(() -> new ResourceNotFoundException("District not found: " + code));
+    }
+
+    /** V37: development blocks of a district (Admin -> Departments, block picker). */
+    public List<BlockRef> blocks(int districtCode) {
+        district(districtCode);
+        return geo.blocks(districtCode);
     }
 
     public List<LocalBodyRef> localBodies(int districtCode, String kind, String query) {

@@ -70,12 +70,13 @@ public class DepartmentAdminService {
                 .name(name)
                 .description(blankToNull(request.description()))
                 .districtCode(area[0])
-                .localBodyCode(area[1])
+                .blockCode(area[1])
+                .localBodyCode(area[2])
                 .isActive(true)
                 .build());
         auditService.record(admin, "DEPARTMENT_CREATED", "DEPARTMENT", department.getDepartmentId(),
                 AuditJson.of("name", name, "description", department.getDescription(),
-                        "district_code", area[0], "local_body_code", area[1]));
+                        "district_code", area[0], "block_code", area[1], "local_body_code", area[2]));
         return DepartmentResponse.from(department);
     }
 
@@ -88,7 +89,7 @@ public class DepartmentAdminService {
                     + "' is the configured fallback department for unmapped categories and cannot be renamed");
         }
         Integer[] area = area(request);
-        if (isFallback(department) && (area[0] != null || area[1] != null)) {
+        if (isFallback(department) && (area[0] != null || area[1] != null || area[2] != null)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "The fallback department serves every area");
         }
         requireUniqueName(name, area, departmentId);
@@ -101,14 +102,17 @@ public class DepartmentAdminService {
         department.setDescription(blankToNull(request.description()));
         department.setHeadUser(head);
         Integer previousDistrict = department.getDistrictCode();
+        Integer previousBlock = department.getBlockCode();
         Integer previousBody = department.getLocalBodyCode();
         department.setDistrictCode(area[0]);
-        department.setLocalBodyCode(area[1]);
+        department.setBlockCode(area[1]);
+        department.setLocalBodyCode(area[2]);
         department = departmentRepository.save(department);
         auditService.record(admin, "DEPARTMENT_UPDATED", "DEPARTMENT", departmentId, AuditJson.of(
                 "name", name, "previous_name", previousName,
                 "district_code", area[0], "previous_district_code", previousDistrict,
-                "local_body_code", area[1], "previous_local_body_code", previousBody,
+                "block_code", area[1], "previous_block_code", previousBlock,
+                "local_body_code", area[2], "previous_local_body_code", previousBody,
                 "description", department.getDescription(), "previous_description", previousDescription,
                 "head_user_id", head != null ? head.getUserId() : null, "previous_head_user_id", previousHead));
         return DepartmentResponse.from(department);
@@ -154,7 +158,7 @@ public class DepartmentAdminService {
 
     /** Same name allowed once per area (V34 uq_departments_name_scope). */
     private void requireUniqueName(String name, Integer[] area, Long selfId) {
-        departmentRepository.findFirstByNameAndDistrictCodeAndLocalBodyCode(name, area[0], area[1])
+        departmentRepository.findFirstByNameAndDistrictCodeAndBlockCodeAndLocalBodyCode(name, area[0], area[1], area[2])
                 .filter(d -> !d.getDepartmentId().equals(selfId)).ifPresent(d -> {
                     throw new ResponseStatusException(HttpStatus.CONFLICT,
                             "A department named '" + d.getName() + "' already exists for this area");
@@ -162,13 +166,26 @@ public class DepartmentAdminService {
     }
 
     /**
-     * {district, body} codes from the request, checked against the LGD tables.
-     * A body brings its own district; a district that disagrees with the body is a 400.
+     * {district, block, body} codes from the request, checked against the LGD
+     * tables. A body or a block brings its own district; a district that
+     * disagrees with it is a 400. A department serves one area, so a block and
+     * a body together are a 400 too (V37 chk_departments_block_scope).
      */
     private Integer[] area(DepartmentUpsertRequest request) {
         Integer body = request.localBodyCode();
+        Integer block = request.blockCode();
         Integer district = request.districtCode();
-        if (body != null) {
+        if (body != null && block != null) {
+            throw new IllegalArgumentException("Choose either a block or a Gram Panchayat / town, not both");
+        }
+        if (block != null) {
+            var ref = geoRepository.block(block)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown block " + block));
+            if (district != null && !district.equals(ref.districtCode())) {
+                throw new IllegalArgumentException(ref.name() + " is not in district " + district);
+            }
+            district = ref.districtCode();
+        } else if (body != null) {
             var ref = geoRepository.localBody(body)
                     .orElseThrow(() -> new IllegalArgumentException("Unknown local body " + body));
             if (district != null && !district.equals(ref.districtCode())) {
@@ -178,12 +195,13 @@ public class DepartmentAdminService {
         } else if (district != null && geoRepository.district(district).isEmpty()) {
             throw new IllegalArgumentException("Unknown district " + district);
         }
-        return new Integer[]{district, body};
+        return new Integer[]{district, block, body};
     }
 
     private boolean isFallback(Department department) {
         return fallbackDepartmentName != null && fallbackDepartmentName.equals(department.getName())
-                && department.getDistrictCode() == null && department.getLocalBodyCode() == null;
+                && department.getDistrictCode() == null && department.getBlockCode() == null
+                && department.getLocalBodyCode() == null;
     }
 
     private Department requireDepartment(Long departmentId) {

@@ -148,34 +148,44 @@ public class DepartmentAssignmentService {
     }
 
     /**
-     * V34 area routing: routing rules name a department TYPE (the global
-     * "Public Works"); when the complaint's local body or district has its own
-     * active department of that name (Admin -> Departments, area chosen with
-     * the location picker), the complaint goes there instead. Most specific
-     * wins: local body, then district, then the global department.
+     * V34 / V37 area routing: routing rules name a department TYPE (the global
+     * "Public Works"); when the complaint's area has its own active department
+     * of that name (Admin -> Departments, area chosen with the location
+     * picker), the complaint goes there instead. Most specific wins: Gram
+     * Panchayat / town, then development block, then district, then the
+     * global department.
      */
     Department forArea(Department ruleDepartment, Complaint complaint) {
         if (complaint.getLocation() == null) {
             return ruleDepartment;
         }
         Integer body = complaint.getLocation().getLocalBodyCode();
+        Integer block = complaint.getLocation().getBlockCode();
         Integer district = complaint.getLocation().getDistrictCode();
         String name = ruleDepartment.getName();
         Optional<Department> local = body == null ? Optional.<Department>empty()
                 : departmentRepository.findFirstByNameAndLocalBodyCodeAndIsActiveTrue(name, body);
         return local
+                .or(() -> block == null ? Optional.<Department>empty()
+                        : departmentRepository.findFirstByNameAndBlockCodeAndLocalBodyCodeIsNullAndIsActiveTrue(name, block))
                 .or(() -> district == null ? Optional.<Department>empty()
-                        : departmentRepository.findFirstByNameAndDistrictCodeAndLocalBodyCodeIsNullAndIsActiveTrue(name, district))
+                        : departmentRepository.findFirstByNameAndDistrictCodeAndBlockCodeIsNullAndLocalBodyCodeIsNullAndIsActiveTrue(
+                                name, district))
                 .orElse(ruleDepartment);
     }
 
-    /** " in Ghaziabad (local body 248988)" - for the assignment history reason. */
-    private static String routedAreaText(Complaint complaint) {
-        if (complaint.getLocation() == null || complaint.getLocation().getLocalBodyCode() == null) {
+    /** " in local body 248988" / " in block 1129" - for the assignment history reason. */
+    static String routedAreaText(Complaint complaint) {
+        if (complaint.getLocation() == null) {
+            return " (no local body known - global department)";
+        }
+        Integer body = complaint.getLocation().getLocalBodyCode();
+        Integer block = complaint.getLocation().getBlockCode();
+        if (body == null && block == null) {
             return " (no local body known - global department)";
         }
         String status = complaint.getLocation().getLocationVerificationStatus();
-        return " in local body " + complaint.getLocation().getLocalBodyCode()
+        return (body != null ? " in local body " + body : "") + (block != null ? " in block " + block : "")
                 + ("REQUIRES_VERIFICATION".equals(status) ? " - location needs verification" : "");
     }
 

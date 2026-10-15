@@ -30,15 +30,20 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     Optional<Department> findByNameAndIsActiveTrue(@org.springframework.data.repository.query.Param("name") String name);
 
     /**
-     * V34 area routing (DepartmentAssignmentService#forArea): the same-named
-     * department of the complaint's local body, then of its district.
+     * V34 / V37 area routing (DepartmentAssignmentService#forArea): the
+     * same-named department of the complaint's local body, then of its block,
+     * then of its whole district.
      */
     Optional<Department> findFirstByNameAndLocalBodyCodeAndIsActiveTrue(String name, Integer localBodyCode);
 
-    Optional<Department> findFirstByNameAndDistrictCodeAndLocalBodyCodeIsNullAndIsActiveTrue(String name, Integer districtCode);
+    Optional<Department> findFirstByNameAndBlockCodeAndLocalBodyCodeIsNullAndIsActiveTrue(String name, Integer blockCode);
 
-    /** V34 Admin uniqueness: one name per area (uq_departments_name_scope). Null codes match IS NULL. */
-    Optional<Department> findFirstByNameAndDistrictCodeAndLocalBodyCode(String name, Integer districtCode, Integer localBodyCode);
+    Optional<Department> findFirstByNameAndDistrictCodeAndBlockCodeIsNullAndLocalBodyCodeIsNullAndIsActiveTrue(
+            String name, Integer districtCode);
+
+    /** V34 / V37 Admin uniqueness: one name per area (uq_departments_name_scope). Null codes match IS NULL. */
+    Optional<Department> findFirstByNameAndDistrictCodeAndBlockCodeAndLocalBodyCode(String name, Integer districtCode,
+                                                                                   Integer blockCode, Integer localBodyCode);
 
     List<Department> findByIsActiveTrueOrderByNameAsc();
 
