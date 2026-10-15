@@ -22,7 +22,8 @@ Sub-commands (see README.md for the full walk-through):
   lgd          LGD daily dump (ramSeraph/opendata "lgd-latest" CSVs):
                states, districts, sub-districts, blocks, villages,
                Gram Panchayats, urban bodies, village -> body, village -> PIN,
-               urban body -> PIN, wards
+               urban body -> PIN, wards, and (when villages_by_blocks is
+               downloaded) village -> development block, Gram Panchayat -> block
   postoffices  India Post "All India Pincode Directory" CSV (with lat/long)
   boundaries   GeoJSON-lines polygons (.geojsonl or .geojsonl.7z):
                --layer WARD       Swachh Bharat Mission ULB ward boundaries
@@ -171,6 +172,67 @@ def find_file(directory: Path, stem: str) -> Path:
     return hits[-1]
 
 
+def find_optional(directory: Path, stem: str) -> Path | None:
+    """Like find_file, but None when an optional LGD file was not downloaded."""
+    try:
+        return find_file(directory, stem)
+    except SystemExit:
+        return None
+
+
+def single_majority(counts: collections.Counter) -> int | None:
+    """The value most rows give, or None when two values tie (the source is split: never guess)."""
+    top = counts.most_common(2)
+    if not top or (len(top) > 1 and top[0][1] == top[1][1]):
+        return None
+    return top[0][0]
+
+
+def village_block_links(rows: Iterable[dict], states: set[int], villages: Iterable[int],
+                        bodies: Iterable[int], blocks: Iterable[int]
+                        ) -> tuple[dict[int, int], dict[int, int], dict[str, int]]:
+    """Development block of each village and Gram Panchayat, from LGD "villages_by_blocks" rows.
+
+    LGD gives one row per village and local body with the village's development block. A
+    village's block is the block its rows name; a Gram Panchayat's block is the block most of
+    its villages are in. When rows name two blocks equally often the village / GP is left
+    without a block (counted in stats as split_villages / split_gps), and a block that was not
+    loaded is skipped (unknown_block) - the honesty rules above: nothing is guessed.
+    """
+    villages, bodies, blocks = set(villages), set(bodies), set(blocks)
+    village_counts: dict[int, collections.Counter] = collections.defaultdict(collections.Counter)
+    gp_counts: dict[int, collections.Counter] = collections.defaultdict(collections.Counter)
+    stats: collections.Counter = collections.Counter()
+    for r in rows:
+        if as_int(r.get("statecode")) not in states:
+            continue
+        v, b = as_int(r.get("villagecode")), as_int(r.get("developmentblockcode"))
+        if not v or v not in villages:
+            continue
+        if not b or b not in blocks:
+            stats["unknown_block"] += 1
+            continue
+        village_counts[v][b] += 1
+        body = as_int(r.get("localbodycode"))
+        if body and body in bodies:
+            gp_counts[body][b] += 1
+    village_block: dict[int, int] = {}
+    for v, counts in village_counts.items():
+        b = single_majority(counts)
+        if b is None:
+            stats["split_villages"] += 1
+        else:
+            village_block[v] = b
+    gp_block: dict[int, int] = {}
+    for body, counts in gp_counts.items():
+        b = single_majority(counts)
+        if b is None:
+            stats["split_gps"] += 1
+        else:
+            gp_block[body] = b
+    return village_block, gp_block, dict(stats)
+
+
 def geojson_lines(path: Path) -> Iterator[dict]:
     """Features of a .geojsonl file, or of a .geojsonl.7z streamed through 7z (no temp file)."""
     if path.suffix == ".7z":
@@ -300,6 +362,7 @@ def cmd_lgd(args: argparse.Namespace) -> None:
             n += 1
     report(f"sub-districts: {n}")
     n = 0
+    loaded_blocks: set[int] = set()
     for r in read_csv(find_file(lgd, "blocks")):
         if as_int(r.get("statecode")) not in states:
             continue
@@ -308,6 +371,7 @@ def cmd_lgd(args: argparse.Namespace) -> None:
             sql.stmt("INSERT INTO geo_blocks (block_code, district_code, name) VALUES "
                      f"({code}, {d}, {q(clean(r.get('developmentblocknameinenglish') or r.get('developmentblockname'), 100))}) "
                      "ON DUPLICATE KEY UPDATE district_code = VALUES(district_code), name = VALUES(name)")
+            loaded_blocks.add(code)
             n += 1
     report(f"blocks: {n}")
 
@@ -363,6 +427,23 @@ def cmd_lgd(args: argparse.Namespace) -> None:
         loaded_bodies[code] = district
         n += 1
     report(f"Gram Panchayats: {n}")
+
+    # --- development block of each village and Gram Panchayat (LGD "villages_by_blocks").
+    # The villages / gp_mapping files have no block, so without this file a pin finds the
+    # village but not its block. Optional: older downloads do not have it.
+    vbb = find_optional(lgd, "villages_by_blocks")
+    if vbb is None:
+        report("village / GP blocks: skipped - villages_by_blocks.*.csv not in the LGD folder")
+    else:
+        village_block, gp_block, block_stats = village_block_links(
+            read_csv(vbb), states, village_state.keys(), loaded_bodies.keys(), loaded_blocks)
+        for v, b in sorted(village_block.items()):
+            sql.stmt(f"UPDATE geo_villages SET block_code = {b} WHERE village_code = {v}")
+        for body, b in sorted(gp_block.items()):
+            sql.stmt(f"UPDATE local_bodies SET block_code = {b} WHERE local_body_code = {body}")
+        report(f"village blocks: {len(village_block)} of {len(village_state)} villages, "
+               f"GP blocks: {len(gp_block)} of {len(loaded_bodies)} Gram Panchayats ({vbb.name}); "
+               f"not set: {block_stats or 'none'}")
 
     # --- urban bodies; district = most common district of the villages / towns they cover
     ulb_cover: dict[int, list[int]] = collections.defaultdict(list)

@@ -17,7 +17,7 @@ write the same tables.
 
 | Data | File | Published by | Copy we download from |
 |---|---|---|---|
-| States, districts, sub-districts, blocks, villages, Gram Panchayats, urban bodies, village → body, village → PIN, urban body → PIN, ward lists | `lgd-<date>/*.csv` (13 files) | Local Government Directory, lgdirectory.gov.in (MoPR) | Daily mirror `github.com/ramSeraph/opendata`, release `lgd-latest-extra1`. The LGD site itself needs a captcha. |
+| States, districts, sub-districts, blocks, villages, Gram Panchayats, urban bodies, village → body, village → PIN, urban body → PIN, ward lists, **village → development block** | `lgd-<date>/*.csv` (14 files, incl. `villages_by_blocks`) | Local Government Directory, lgdirectory.gov.in (MoPR) | Daily mirror `github.com/ramSeraph/opendata`, release `lgd-latest-extra1`. The LGD site itself needs a captcha. |
 | Post offices with PIN, office type and lat/long | `india_post_pincode_2021.csv` | Department of Posts ("All India Pincode Directory", data.gov.in) | `github.com/harshvardhaniimi/IndiaPIN` `data-raw/pincode.csv`, December 2021, used because the data.gov.in API timed out |
 | Ward boundaries of towns | `SBM_Wards.geojsonl.7z` | Swachh Bharat Mission (Urban), ward maps approved by ULB nodal officers | `github.com/ramSeraph/indian_admin_boundaries`, release `urban` |
 | Town boundaries | `SBM_ULBs.geojsonl.7z` | Swachh Bharat Mission (Urban) | same, release `urban` |
@@ -31,6 +31,26 @@ a verification status:
 * `PUBLISHED` means a government portal published it. We load it unchanged, and our staff have not checked it yet.
 * `VERIFIED` means an Admin or officer of this deployment confirmed it.
 * `UNVERIFIED` means the row was entered by hand, or we derived it, and nobody has confirmed it yet.
+
+### Village → block (`villages_by_blocks`)
+
+The LGD `villages` and `gp_mapping` files carry no development block, so without
+`villages_by_blocks.<date>.csv` a pin finds the village but not its block (measured
+2026-10-15: 156,139 of 159,235 UP + Bihar villages had no block). Download it from the
+same release as the other LGD files, same date, and unpack it into `lgd-<date>/`:
+
+```bash
+cd ~/jannet-geo-data/raw/lgd-2026-10-11
+curl -sSLO https://github.com/ramSeraph/opendata/releases/download/lgd-latest-extra1/villages_by_blocks.11Oct2026.csv.7z
+7z x villages_by_blocks.11Oct2026.csv.7z
+```
+
+The `lgd` step then sets `geo_villages.block_code` from it, and a Gram Panchayat's
+`local_bodies.block_code` to the block most of its villages are in. A village or GP whose
+rows name two blocks equally often is left without a block and counted in the report;
+nothing is guessed. Coverage on 2026-10-11 for UP + Bihar: 155,128 of 159,235 villages.
+
+Tests: `python3 -m unittest discover -s database/tools/geo_import -p 'test_*.py'`
 
 ### What the data does not have (checked 2026-10-11, UP + Bihar)
 
@@ -47,7 +67,7 @@ Use the step-by-step guide in `docs/LOCATION_V2.md` §"Dataset". It ends with th
 ```
 ~/jannet-geo-data/raw/
   india_post_pincode_2021.csv
-  lgd-2026-10-11/          13 *.csv.7z files, unpacked with 7z x  (folder name = download date)
+  lgd-2026-10-11/          14 *.csv.7z files, unpacked with 7z x  (folder name = download date)
   boundaries-2026-10-11/   5 *.geojsonl.7z files (kept compressed, read with 7z on the fly)
 ```
 
