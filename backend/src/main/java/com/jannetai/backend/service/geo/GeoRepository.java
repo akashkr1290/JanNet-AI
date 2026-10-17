@@ -438,47 +438,118 @@ public class GeoRepository {
 
     /**
      * Names matching {@code query} in the served districts (all districts when
-     * none is served): wards, towns / Gram Panchayats, villages, post offices.
-     * Only rows with a known map position are returned.
+     * none is served): wards, post offices and villages. Only rows with a known
+     * map position are returned.
+     *
+     * <p>"Rampur, Gaya" (or "Rampur Gaya" when the whole text finds nothing)
+     * limits the search to districts whose name starts with the last part - a
+     * common village name exists in dozens of districts.
+     *
+     * <p>Order (V37, see {@link #merge}): exact name matches first, then the
+     * three kinds take turns (village, ward, post office), so villages are no
+     * longer cut off when a name also matches many wards / post offices.
      */
     public List<PlaceResult> searchPlaces(String query, int limit) {
         String q = query.trim();
-        String key = GeoNames.normalize(q);
-        if (key.length() < 2) {
+        int comma = q.indexOf(',');
+        if (comma > 0) {
+            return searchPlaces(q.substring(0, comma).trim(), q.substring(comma + 1).trim(), limit);
+        }
+        List<PlaceResult> all = searchPlaces(q, null, limit);
+        int space = q.lastIndexOf(' ');
+        if (all.isEmpty() && space > 0) {
+            return searchPlaces(q.substring(0, space).trim(), q.substring(space + 1).trim(), limit);
+        }
+        return all;
+    }
+
+    private List<PlaceResult> searchPlaces(String place, String districtText, int limit) {
+        String key = GeoNames.normalize(place);
+        String districtKey = districtText == null ? "" : GeoNames.normalize(districtText);
+        if (key.length() < 2 || (districtText != null && districtKey.length() < 2)) {
             return List.of();
         }
-        boolean served = anyDistrictServed();
-        String inServed = served ? " AND d.is_served = TRUE" : "";
-        MapSqlParameterSource p = new MapSqlParameterSource("like", "%" + q.replace("%", "") + "%")
-                .addValue("prefix", q.replace("%", "") + "%").addValue("key", key + "%").addValue("n", limit);
-        List<PlaceResult> out = new ArrayList<>();
+        String clean = place.replace("%", "").replace("_", "");
+        String filter = (anyDistrictServed() ? " AND d.is_served = TRUE" : "")
+                + (districtText == null ? "" : " AND REPLACE(REPLACE(REPLACE(LOWER(d.name), ' ', ''), '-', ''), '.', '') LIKE :dkey");
+        MapSqlParameterSource p = new MapSqlParameterSource("like", "%" + clean + "%")
+                .addValue("prefix", clean + "%").addValue("key", key + "%").addValue("exact", key)
+                .addValue("dkey", districtKey + "%").addValue("n", limit);
+        List<Named> wards = new ArrayList<>();
         jdbc.query("SELECT w.name, lb.name AS body, d.name AS district, w.centre_latitude, w.centre_longitude "
                         + "FROM wards w JOIN local_bodies lb ON lb.local_body_code = w.local_body_code "
                         + "JOIN geo_districts d ON d.district_code = lb.district_code "
-                        + "WHERE w.is_active = TRUE AND w.centre_latitude IS NOT NULL AND w.name LIKE :like" + inServed
+                        + "WHERE w.is_active = TRUE AND w.centre_latitude IS NOT NULL AND w.name LIKE :like" + filter
                         + " ORDER BY w.name LIMIT :n", p,
                 rs -> {
-                    out.add(new PlaceResult(rs.getString("name"), rs.getString("body") + ", " + rs.getString("district"),
-                            rs.getDouble("centre_latitude"), rs.getDouble("centre_longitude"), "WARD", "DATASET"));
+                    wards.add(new Named(rs.getString("name"), new PlaceResult(rs.getString("name"),
+                            rs.getString("body") + ", " + rs.getString("district"),
+                            rs.getDouble("centre_latitude"), rs.getDouble("centre_longitude"), "WARD", "DATASET")));
                 });
+        List<Named> offices = new ArrayList<>();
         jdbc.query("SELECT o.office_name, o.pincode, d.name AS district, o.latitude, o.longitude "
                         + "FROM pincode_offices o JOIN geo_districts d ON d.district_code = o.district_code "
-                        + "WHERE o.latitude IS NOT NULL AND o.office_name LIKE :prefix" + inServed
+                        + "WHERE o.latitude IS NOT NULL AND o.office_name LIKE :prefix" + filter
                         + " ORDER BY o.office_name LIMIT :n", p,
                 rs -> {
-                    out.add(new PlaceResult(AdminAreaService.stripOfficeSuffix(rs.getString("office_name")) + " (post office)",
+                    String name = AdminAreaService.stripOfficeSuffix(rs.getString("office_name"));
+                    offices.add(new Named(name, new PlaceResult(name + " (post office)",
                             rs.getString("pincode") + ", " + rs.getString("district"),
-                            rs.getDouble("latitude"), rs.getDouble("longitude"), "POST_OFFICE", "DATASET"));
+                            rs.getDouble("latitude"), rs.getDouble("longitude"), "POST_OFFICE", "DATASET")));
                 });
-        jdbc.query("SELECT v.name, s.name AS sub, d.name AS district, v.centre_latitude, v.centre_longitude "
+        List<Named> villages = new ArrayList<>();
+        jdbc.query("SELECT v.name, s.name AS sub, b.name AS block, d.name AS district, v.centre_latitude, v.centre_longitude "
                         + "FROM geo_villages v JOIN geo_districts d ON d.district_code = v.district_code "
                         + "JOIN geo_subdistricts s ON s.subdistrict_code = v.subdistrict_code "
-                        + "WHERE v.centre_latitude IS NOT NULL AND v.name_key LIKE :key" + inServed
-                        + " ORDER BY v.name LIMIT :n", p,
+                        + "LEFT JOIN geo_blocks b ON b.block_code = v.block_code "
+                        + "WHERE v.centre_latitude IS NOT NULL AND v.name_key LIKE :key" + filter
+                        + " ORDER BY v.name_key = :exact DESC, v.name LIMIT :n", p,
                 rs -> {
-                    out.add(new PlaceResult(rs.getString("name"), "village, " + rs.getString("sub") + ", " + rs.getString("district"),
-                            rs.getDouble("centre_latitude"), rs.getDouble("centre_longitude"), "VILLAGE", "DATASET"));
+                    String block = rs.getString("block");
+                    villages.add(new Named(rs.getString("name"), new PlaceResult(rs.getString("name"),
+                            "village, " + (block != null ? block + " block" : rs.getString("sub")) + ", " + rs.getString("district"),
+                            rs.getDouble("centre_latitude"), rs.getDouble("centre_longitude"), "VILLAGE", "DATASET")));
                 });
+        return merge(key, villages, wards, offices, limit);
+    }
+
+    /** A result with the plain name it matched on (labels add " (post office)"). */
+    record Named(String name, PlaceResult result) {
+    }
+
+    /**
+     * Exact name matches first (villages, then wards, then post offices), then
+     * the three lists take turns, keeping each list's own order; at most
+     * {@code limit} results.
+     */
+    static List<PlaceResult> merge(String key, List<Named> villages, List<Named> wards, List<Named> offices, int limit) {
+        List<List<Named>> lists = List.of(villages, wards, offices);
+        List<PlaceResult> out = new ArrayList<>();
+        java.util.Set<Named> used = new java.util.HashSet<>();
+        for (List<Named> list : lists) {
+            for (Named n : list) {
+                if (out.size() < limit && GeoNames.normalize(n.name()).equals(key) && used.add(n)) {
+                    out.add(n.result());
+                }
+            }
+        }
+        int[] next = new int[lists.size()];
+        boolean added = true;
+        while (out.size() < limit && added) {
+            added = false;
+            for (int i = 0; i < lists.size() && out.size() < limit; i++) {
+                List<Named> list = lists.get(i);
+                while (next[i] < list.size() && used.contains(list.get(next[i]))) {
+                    next[i]++;
+                }
+                if (next[i] < list.size()) {
+                    Named n = list.get(next[i]++);
+                    used.add(n);
+                    out.add(n.result());
+                    added = true;
+                }
+            }
+        }
         return out;
     }
 
