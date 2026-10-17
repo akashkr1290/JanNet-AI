@@ -91,3 +91,7 @@ deployment/cloudflare/web-dist/
 deployment/cloudflare/worker/.wrangler/
 deployment/cloudflare/worker/node_modules/
 deployment/cloudflare/worker/.proxy-key.*.json
+
+# location accuracy harness (database/tools/accuracy): exported points and run output
+up_bihar_offices.tsv
+accuracy-*/

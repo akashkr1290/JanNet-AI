@@ -1,0 +1,4 @@
+name,latitude,longitude,district,block,local_body,note
+"# One row per place whose block is certain: block / BDO office, DM office, a village you know",,,,,,
+"# Coordinates: right-click the exact building in OpenStreetMap or Google Maps and copy the two numbers",,,,,,
+"# block = development block (prakhand); local_body = Gram Panchayat or town (optional); rows starting with # are ignored",,,,,,
