@@ -14,13 +14,18 @@ class StaffArea {
   final DistrictRef? district;
   final LocalBodyRef? body;
   final WardRef? ward;
-  const StaffArea({this.district, this.body, this.ward});
+
+  /// V37: a development block (department form only). A department serves a
+  /// block OR a Gram Panchayat / town, so choosing one clears the other.
+  final BlockRef? block;
+  const StaffArea({this.district, this.body, this.ward, this.block});
 
   static const none = StaffArea();
 
   String get summary => [
         if (ward != null) ward!.name,
         if (body != null) body!.label,
+        if (block != null) '${block!.name} block',
         if (district != null) '${district!.name}, ${district!.stateName}',
       ].join(' · ');
 }
@@ -33,12 +38,20 @@ class StaffArea {
 /// Used in screens/admin_user_management_screen.dart (Add User) and
 /// screens/admin_configuration_screen.dart (department, ward dialogs).
 /// [showWard] false hides the ward step (departments serve a whole body).
+/// [showBlock] true adds the development block step (V37, departments only).
 class StaffAreaPicker extends StatefulWidget {
   final StaffArea value;
   final ValueChanged<StaffArea> onChanged;
   final bool showWard;
+  final bool showBlock;
 
-  const StaffAreaPicker({super.key, required this.value, required this.onChanged, this.showWard = true});
+  const StaffAreaPicker({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.showWard = true,
+    this.showBlock = false,
+  });
 
   @override
   State<StaffAreaPicker> createState() => _StaffAreaPickerState();
@@ -49,6 +62,7 @@ class _StaffAreaPickerState extends State<StaffAreaPicker> {
   List<DistrictRef> _districts = const [];
   List<LocalBodyRef> _bodies = const [];
   List<WardRef> _wards = const [];
+  List<BlockRef> _blocks = const [];
   bool _busy = false;
   String? _error;
 
@@ -105,9 +119,11 @@ class _StaffAreaPickerState extends State<StaffAreaPicker> {
 
   Future<void> _loadBodies(DistrictRef d, {bool keep = false}) async {
     final bodies = await GeoApi.instance.localBodies(d.code);
+    final blocks = widget.showBlock ? await GeoApi.instance.blocks(d.code) : const <BlockRef>[];
     if (!mounted) return;
     setState(() {
       _bodies = bodies;
+      _blocks = blocks;
       if (!keep) _wards = const [];
     });
     final b = widget.value.body;
@@ -150,9 +166,27 @@ class _StaffAreaPickerState extends State<StaffAreaPicker> {
           _run(() => _loadBodies(d));
         },
       ),
+      if (widget.showBlock && v.district != null && _blocks.isNotEmpty)
+        DropdownButtonFormField<int?>(
+          // re-created when the body is chosen (that clears the block)
+          key: ValueKey('block-${v.district!.code}-${_blocks.length}-${v.block?.code}-${v.body?.code}'),
+          initialValue: v.block?.code,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: trs('Block (optional)'),
+            helperText: trs('Choose a block, or a Gram Panchayat / town below - not both'),
+          ),
+          items: [
+            const DropdownMenuItem<int?>(value: null, child: Text('No block')),
+            for (final b in _blocks) DropdownMenuItem<int?>(value: b.code, child: Text(b.name)),
+          ],
+          onChanged: (code) => widget.onChanged(StaffArea(
+              district: v.district, block: code == null ? null : _blocks.firstWhere((b) => b.code == code))),
+        ),
       if (v.district != null)
         Autocomplete<LocalBodyRef>(
-          key: ValueKey('bodies-${v.district!.code}-${_bodies.length}'),
+          // re-created when a block is chosen (that clears the body)
+          key: ValueKey('bodies-${v.district!.code}-${_bodies.length}-${v.block?.code}'),
           initialValue: TextEditingValue(text: v.body?.label ?? ''),
           displayStringForOption: (b) => b.label,
           optionsBuilder: (text) {

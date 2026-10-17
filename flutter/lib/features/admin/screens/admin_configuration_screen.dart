@@ -231,9 +231,16 @@ class _DepartmentsTab extends StatelessWidget {
                   trailing: TextButton(onPressed: () => setDialogState(() => changeArea = true), child: const Text('Change')),
                 )
               else
-                StaffAreaPicker(value: area, showWard: false, onChanged: (a) => setDialogState(() => area = a)),
-              const Text('Leave the area empty for a department that serves every area. Complaints from an area go to '
-                  'its own department of the same name when one exists.', style: TextStyle(color: JanColors.muted, fontSize: 12.5)),
+                StaffAreaPicker(
+                    value: area,
+                    showWard: false,
+                    showBlock: true,
+                    onChanged: (a) => setDialogState(() => area = a)),
+              const Text(
+                  'Leave the area empty for a department that serves every area. Complaints from an area go to '
+                  'its own department of the same name when one exists: Gram Panchayat / town first, then block, '
+                  'then district.',
+                  style: TextStyle(color: JanColors.muted, fontSize: 12.5)),
               if (existing != null)
                 FutureBuilder<List<AdminUser>>(
                   future: heads,
@@ -268,6 +275,7 @@ class _DepartmentsTab extends StatelessWidget {
                     headUserId: existing == null ? null : headUserId,
                     districtCode: changeArea ? area.district?.code : existing?.districtCode,
                     localBodyCode: changeArea ? area.body?.code : existing?.localBodyCode,
+                    blockCode: changeArea ? area.block?.code : existing?.blockCode,
                   );
                   if (dialogContext.mounted) Navigator.of(dialogContext).pop(true);
                 } catch (e) {

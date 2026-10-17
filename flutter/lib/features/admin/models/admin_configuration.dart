@@ -14,6 +14,9 @@ class AdminDepartment {
   final String? localBodyName;
   final int? districtCode;
   final int? localBodyCode;
+  // V37 development block served (null = not a block department)
+  final int? blockCode;
+  final String? blockName;
 
   AdminDepartment({
     required this.departmentId,
@@ -25,9 +28,16 @@ class AdminDepartment {
     this.localBodyName,
     this.districtCode,
     this.localBodyCode,
+    this.blockCode,
+    this.blockName,
   });
 
-  String get areaLabel => localBodyName ?? districtName ?? 'All areas';
+  /// "Pakri" / "Gurua block, Gaya" / "Gaya" / "All areas".
+  String get areaLabel =>
+      localBodyName ??
+      (blockName != null ? ['$blockName block', if (districtName != null) districtName!].join(', ') : null) ??
+      districtName ??
+      'All areas';
 
   factory AdminDepartment.fromJson(Map<String, dynamic> json) => AdminDepartment(
         departmentId: (json['departmentId'] as num).toInt(),
@@ -39,6 +49,8 @@ class AdminDepartment {
         localBodyName: json['localBodyName'] as String?,
         districtCode: (json['districtCode'] as num?)?.toInt(),
         localBodyCode: (json['localBodyCode'] as num?)?.toInt(),
+        blockCode: (json['blockCode'] as num?)?.toInt(),
+        blockName: json['blockName'] as String?,
       );
 }
 

@@ -13,7 +13,7 @@ import '../../../core/l10n/tr_text.dart';
 /// stops (incident_location_picker_screen.dart). [address] comes from
 /// GET /api/v1/geo/reverse (core/api/geo_api.dart); the backend's
 /// AreaResolver worked out the village / Gram Panchayat / Nagar Nigam / ward
-/// from the published boundaries containing the pin.
+/// (and, V37, the development block) from the published boundaries containing the pin.
 ///
 ///  * Backend sure (EXACT / LIKELY): big "Village, Gram Panchayat" + Yes / No.
 ///  * Not sure: one-tap list of the likely villages / towns.
@@ -149,6 +149,7 @@ class _AreaConfirmCardState extends State<AreaConfirmCard> {
           [
             if (m.village != null) m.village!.name else if (a.locality != null) a.locality!,
             if (body != null) body.label,
+            if (m.block != null && !(body?.isUrban ?? false)) '${m.block!.name} block',
             if (m.district != null) m.district!.name,
           ].join(', '),
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: JanColors.navy),

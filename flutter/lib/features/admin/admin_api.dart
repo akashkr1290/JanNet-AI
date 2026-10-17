@@ -165,6 +165,8 @@ class AdminApi {
   }
 
   /// V34: [districtCode]/[localBodyCode] = area the department serves (both null = every area).
+  /// V37: [blockCode] = one development block (the backend takes the district from it;
+  /// a block and a local body together are rejected).
   Future<AdminDepartment> saveDepartment({
     int? departmentId,
     required String name,
@@ -172,6 +174,7 @@ class AdminApi {
     int? headUserId,
     int? districtCode,
     int? localBodyCode,
+    int? blockCode,
   }) async {
     final body = {
       'name': name,
@@ -179,6 +182,7 @@ class AdminApi {
       if (headUserId != null) 'headUserId': headUserId,
       if (districtCode != null) 'districtCode': districtCode,
       if (localBodyCode != null) 'localBodyCode': localBodyCode,
+      if (blockCode != null) 'blockCode': blockCode,
     };
     final json = departmentId == null
         ? await _client.post('/admin/departments', body: body)

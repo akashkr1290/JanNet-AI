@@ -85,6 +85,24 @@ class DistrictRef {
       );
 }
 
+/// backend BlockRef (V37): an LGD development block (prakhand) of a district.
+class BlockRef {
+  final int code;
+  final String name;
+  final int? districtCode;
+
+  const BlockRef({required this.code, required this.name, this.districtCode});
+
+  factory BlockRef.fromJson(Map<String, dynamic> j) =>
+      BlockRef(code: _i(j['code'])!, name: j['name'] as String, districtCode: _i(j['districtCode']));
+
+  @override
+  bool operator ==(Object other) => other is BlockRef && other.code == code;
+
+  @override
+  int get hashCode => code.hashCode;
+}
+
 /// backend AreaRef (a state).
 class StateRef {
   final int code;
@@ -131,6 +149,7 @@ class VillageRef {
   final int? districtCode;
   final String? subdistrictName;
   final String? blockName;
+  final int? blockCode; // V37
   final List<LocalBodyRef> localBodies;
   final GeoPoint? centre;
 
@@ -140,13 +159,15 @@ class VillageRef {
     this.districtCode,
     this.subdistrictName,
     this.blockName,
+    this.blockCode,
     this.localBodies = const [],
     this.centre,
   });
 
-  /// "Gurua tehsil · Pakri GP" - shown under the name so same-named villages can be told apart.
+  /// "Gurua tehsil · Gurua block · Pakri GP" - shown under the name so same-named villages can be told apart.
   String get detail => [
         if (subdistrictName != null) '$subdistrictName tehsil',
+        if (blockName != null) '$blockName block',
         if (localBodies.isNotEmpty) localBodies.map((b) => b.isUrban ? b.name : '${b.name} GP').join(' / '),
       ].join(' · ');
 
@@ -159,6 +180,7 @@ class VillageRef {
       districtCode: _i(j['districtCode']),
       subdistrictName: j['subdistrictName'] as String?,
       blockName: j['blockName'] as String?,
+      blockCode: _i(j['blockCode']),
       localBodies: ((j['localBodies'] as List?) ?? const [])
           .map((e) => LocalBodyRef.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -239,6 +261,7 @@ class AreaMatch {
   final String areaSource; // BOUNDARY | NAME_MATCH | POST_OFFICE | NONE
   final WardRef? suggestedWard; // a hint when no ward map proves the ward
   final String? wardVerification; // VERIFIED_BOUNDARY | REQUIRES_VERIFICATION | null (no ward list)
+  final BlockRef? block; // V37: the village's / Gram Panchayat's block; null in a town
 
   const AreaMatch({
     this.stateName,
@@ -255,6 +278,7 @@ class AreaMatch {
     this.areaSource = 'NONE',
     this.suggestedWard,
     this.wardVerification,
+    this.block,
   });
 
   /// The area comes from published boundaries (not from names).
@@ -284,6 +308,7 @@ class AreaMatch {
       areaSource: j['areaSource'] as String? ?? 'NONE',
       suggestedWard: j['suggestedWard'] == null ? null : WardRef.fromJson(j['suggestedWard'] as Map<String, dynamic>),
       wardVerification: j['wardVerification'] as String?,
+      block: j['block'] == null ? null : BlockRef.fromJson(j['block'] as Map<String, dynamic>),
     );
   }
 }
@@ -383,6 +408,15 @@ IncidentArea areaFrom({
 }) {
   final d = district ?? address?.area.district;
   final b = body ?? (village != null && village.localBodies.length == 1 ? village.localBodies.first : null);
+  // block shown to the citizen: the village's own, else the backend's block when
+  // the citizen accepted the proposed place; none in a town
+  final area = address?.area;
+  final proposalBlock = area != null &&
+          (village == null || village.code == area.village?.code) &&
+          (b == null || b.code == area.localBody?.code || area.localBody == null)
+      ? area.block?.name
+      : null;
+  final blockName = (b?.isUrban ?? false) ? null : (village?.blockName ?? proposalBlock);
   return IncidentArea(
     pincode: pincode ?? address?.pincode,
     landmark: address?.landmark,
@@ -394,6 +428,7 @@ IncidentArea areaFrom({
     localBodyName: b?.name,
     localBodyUrban: b?.isUrban ?? false,
     districtName: d?.name,
+    blockName: blockName,
     districtServed: d?.served ?? true,
     wardId: ward?.wardId,
     wardName: ward?.name,

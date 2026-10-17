@@ -134,6 +134,24 @@ class _JanMapState extends State<JanMap> {
     }
   }
 
+  /// The read-only preview is often created inside a form that is still
+  /// animating, where the browser first gives it no size. Once the style is in,
+  /// resize it (web only - a no-op on Android) and put the camera back on the
+  /// point, so the preview never stays an empty blue box.
+  void _settlePreview() {
+    final c = _controller;
+    if (c == null || widget.interactive) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _controller != c) return;
+      try {
+        c.forceResizeWebMap();
+        await c.moveCamera(ml.CameraUpdate.newLatLngZoom(_l(widget.center), widget.zoom));
+      } catch (_) {
+        // the map was closed meanwhile - nothing to do
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final interactive = widget.interactive;
@@ -154,6 +172,7 @@ class _JanMapState extends State<JanMap> {
       onMapCreated: (c) => _controller = c,
       onStyleLoadedCallback: () {
         _styleReady = true;
+        _settlePreview();
         _redraw();
       },
       onCameraMove: widget.onCameraMove == null

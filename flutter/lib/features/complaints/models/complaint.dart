@@ -32,6 +32,9 @@ class ComplaintLocation {
   final String? villageName;
   final String? wardNumber;
 
+  /// V37 development block (null in a town or when unknown).
+  final String? blockName;
+
   /// BOUNDARY (ward map), CITIZEN (chosen), STAFF (set by the office), LEGACY;
   /// LOCALITY / NEAREST only on complaints from before V36.
   final String? wardMatch;
@@ -66,6 +69,7 @@ class ComplaintLocation {
     this.localBodyType,
     this.villageName,
     this.wardNumber,
+    this.blockName,
     this.wardMatch,
     this.locationVerificationStatus,
     this.verificationReason,
@@ -73,12 +77,13 @@ class ComplaintLocation {
     this.suggestedWardName,
   });
 
-  /// "Jolah Bigha, Pakri (Village Panchayat), Gaya 824236" - the place in words for officers.
+  /// "Jolah Bigha, Pakri (Village Panchayat), Gurua block, Gaya 824236" - the place in words for officers.
   String? get areaLine {
     final parts = [
       if (landmark != null) landmark!,
       villageName ?? locality,
       if (localBodyName != null) localBodyType != null ? '$localBodyName ($localBodyType)' : localBodyName,
+      if (blockName != null) '$blockName block',
       if (districtName != null) districtName! + (pincode != null ? ' $pincode' : ''),
     ].whereType<String>().where((p) => p.isNotEmpty).toList();
     return parts.isEmpty ? null : parts.join(', ');
@@ -111,6 +116,7 @@ class ComplaintLocation {
       localBodyType: json['localBodyType'] as String?,
       villageName: json['villageName'] as String?,
       wardNumber: json['wardNumber'] as String?,
+      blockName: json['blockName'] as String?,
       wardMatch: json['wardMatch'] as String?,
       locationVerificationStatus: json['locationVerificationStatus'] as String?,
       verificationReason: json['verificationReason'] as String?,

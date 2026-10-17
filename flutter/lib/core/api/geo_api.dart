@@ -62,6 +62,12 @@ class GeoApi {
     return json.map((e) => DistrictRef.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// V37: development blocks of a district, by name (Admin department form).
+  Future<List<BlockRef>> blocks(int districtCode) async {
+    final json = await _client.get('/geo/blocks', query: {'districtCode': districtCode}) as List<dynamic>;
+    return json.map((e) => BlockRef.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   /// [kind]: 'RURAL' (Gram Panchayats), 'URBAN' (Nagar Nigam / Parishad ...) or null for both.
   Future<List<LocalBodyRef>> localBodies(int districtCode, {String? kind, String? query}) async {
     final json = await _client.get('/geo/local-bodies', query: {

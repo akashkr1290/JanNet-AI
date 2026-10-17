@@ -90,6 +90,10 @@ class IncidentArea {
   final bool localBodyUrban;
   final String? districtName;
 
+  /// V37 development block, display only (the backend works it out itself
+  /// from the village / Gram Panchayat - it is not sent with the complaint).
+  final String? blockName;
+
   /// false = the district is not served by this deployment (the app warns; the
   /// complaint is still accepted and flagged for Admin review).
   final bool districtServed;
@@ -107,16 +111,18 @@ class IncidentArea {
     this.localBodyName,
     this.localBodyUrban = false,
     this.districtName,
+    this.blockName,
     this.districtServed = true,
     this.wardId,
     this.wardName,
   });
 
-  /// One line for the summary: "Jolah Bigha · Pakri GP · Ward 4 · Gaya".
+  /// One line for the summary: "Jolah Bigha · Pakri GP · Gurua block · Ward 4 · Gaya".
   String get summary => [
         if (landmark != null && landmark!.isNotEmpty) landmark!,
         if (villageName != null) villageName! else if (locality != null && locality!.isNotEmpty) locality!,
         if (localBodyName != null) localBodyUrban ? localBodyName! : '${localBodyName!} GP',
+        if (blockName != null && !localBodyUrban) '${blockName!} block',
         if (wardName != null) wardName!,
         if (districtName != null) districtName!,
         if (pincode != null) pincode!,
@@ -133,6 +139,7 @@ class IncidentArea {
         localBodyName: localBodyName,
         localBodyUrban: localBodyUrban,
         districtName: districtName,
+        blockName: blockName,
         districtServed: districtServed,
         wardId: id,
         wardName: name,
@@ -160,6 +167,7 @@ class IncidentArea {
         'bodyName': localBodyName,
         'bodyUrban': localBodyUrban,
         'district': districtName,
+        'block': blockName,
         'served': districtServed,
         'wardId': wardId,
         'wardName': wardName,
@@ -178,6 +186,7 @@ class IncidentArea {
       localBodyName: json['bodyName'] as String?,
       localBodyUrban: json['bodyUrban'] as bool? ?? false,
       districtName: json['district'] as String?,
+      blockName: json['block'] as String?,
       districtServed: json['served'] as bool? ?? true,
       wardId: (json['wardId'] as num?)?.toInt(),
       wardName: json['wardName'] as String?,
