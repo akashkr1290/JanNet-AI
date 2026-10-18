@@ -211,6 +211,15 @@ class _DepartmentsTab extends StatelessWidget {
     final heads = existing == null
         ? Future.value(<AdminUser>[])
         : AdminApi.instance.listUsers(role: 'DEPARTMENT_HEAD', status: 'ACTIVE', departmentId: existing.departmentId);
+    // V37: an area department receives complaints only when its name is the name
+    // of a department the routing rules use (an "All areas" department), so the
+    // name is chosen from those once an area is picked.
+    final routingNames = AdminApi.instance.listDepartments().then((all) => all
+        .where((d) => d.isActive && d.districtCode == null && d.blockCode == null && d.localBodyCode == null)
+        .map((d) => d.name)
+        .toSet()
+        .toList()
+      ..sort());
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -235,11 +244,41 @@ class _DepartmentsTab extends StatelessWidget {
                     value: area,
                     showWard: false,
                     showBlock: true,
+                    showState: true,
                     onChanged: (a) => setDialogState(() => area = a)),
+              if ((changeArea && area.district != null) || (!changeArea && existing?.districtCode != null))
+                FutureBuilder<List<String>>(
+                  future: routingNames,
+                  builder: (context, snap) {
+                    final names = snap.data ?? const <String>[];
+                    final current = name.text.trim();
+                    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      DropdownButtonFormField<String>(
+                        key: ValueKey('type-${names.length}-$current'),
+                        initialValue: names.contains(current) ? current : null,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: trs('Department type'),
+                          helperText: trs('Complaints of this area reach this office through the routing rule of this type'),
+                        ),
+                        items: [for (final n in names) DropdownMenuItem(value: n, child: Text(n))],
+                        onChanged: (v) => setDialogState(() => name.text = v ?? name.text),
+                      ),
+                      if (snap.hasData && current.isNotEmpty && !names.contains(current))
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6),
+                          child: Text(
+                              'No routing rule uses this name, so complaints will not reach this department. '
+                              'Choose a department type above.',
+                              style: TextStyle(color: JanColors.error, fontSize: 12.5)),
+                        ),
+                    ]);
+                  },
+                ),
               const Text(
-                  'Leave the area empty for a department that serves every area. Complaints from an area go to '
-                  'its own department of the same name when one exists: Gram Panchayat / town first, then block, '
-                  'then district.',
+                  'Leave the area empty for a department that serves every area. For an office: choose State, '
+                  'District, then a block or a Gram Panchayat / town, and the department type. Complaints from that '
+                  'area then go to it: Gram Panchayat / town first, then block, then district.',
                   style: TextStyle(color: JanColors.muted, fontSize: 12.5)),
               if (existing != null)
                 FutureBuilder<List<AdminUser>>(

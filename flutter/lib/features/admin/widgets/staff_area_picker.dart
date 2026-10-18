@@ -39,11 +39,14 @@ class StaffArea {
 /// screens/admin_configuration_screen.dart (department, ward dialogs).
 /// [showWard] false hides the ward step (departments serve a whole body).
 /// [showBlock] true adds the development block step (V37, departments only).
+/// [showState] true starts with a state list and then that state's districts
+/// (State -> District -> Block), instead of only the served districts.
 class StaffAreaPicker extends StatefulWidget {
   final StaffArea value;
   final ValueChanged<StaffArea> onChanged;
   final bool showWard;
   final bool showBlock;
+  final bool showState;
 
   const StaffAreaPicker({
     super.key,
@@ -51,6 +54,7 @@ class StaffAreaPicker extends StatefulWidget {
     required this.onChanged,
     this.showWard = true,
     this.showBlock = false,
+    this.showState = false,
   });
 
   @override
@@ -59,6 +63,8 @@ class StaffAreaPicker extends StatefulWidget {
 
 class _StaffAreaPickerState extends State<StaffAreaPicker> {
   final _pin = TextEditingController();
+  List<StateRef> _states = const [];
+  int? _stateCode;
   List<DistrictRef> _districts = const [];
   List<LocalBodyRef> _bodies = const [];
   List<WardRef> _wards = const [];
@@ -93,11 +99,33 @@ class _StaffAreaPickerState extends State<StaffAreaPicker> {
   }
 
   /// Served districts first (GET /geo/districts); the PIN box covers any other district.
+  /// With [StaffAreaPicker.showState]: the states, then the chosen state's districts.
   Future<void> _loadDistricts() => _run(() async {
-        final list = await GeoApi.instance.districts();
-        if (mounted) setState(() => _districts = list);
         final d = widget.value.district;
+        if (widget.showState) {
+          final states = await GeoApi.instance.states();
+          if (mounted) setState(() => _states = states);
+          if (d == null) return;
+          _stateCode = d.stateCode;
+        }
+        final list = await GeoApi.instance.districts(stateCode: widget.showState ? d!.stateCode : null);
+        if (mounted) setState(() => _districts = list);
         if (d != null) await _loadBodies(d, keep: true);
+      });
+
+  /// State chosen: its districts, and the area starts again.
+  Future<void> _chooseState(int? code) => _run(() async {
+        setState(() {
+          _stateCode = code;
+          _districts = const [];
+          _blocks = const [];
+          _bodies = const [];
+          _wards = const [];
+        });
+        widget.onChanged(StaffArea.none);
+        if (code == null) return;
+        final list = await GeoApi.instance.districts(stateCode: code);
+        if (mounted) setState(() => _districts = list);
       });
 
   Future<void> _byPin() => _run(() async {
@@ -111,6 +139,15 @@ class _StaffAreaPickerState extends State<StaffAreaPicker> {
         if (d == null) {
           setState(() => _error = 'PIN code not found.');
           return;
+        }
+        if (widget.showState && _stateCode != d.stateCode) {
+          final list = await GeoApi.instance.districts(stateCode: d.stateCode);
+          if (mounted) {
+            setState(() {
+              _stateCode = d.stateCode;
+              _districts = list;
+            });
+          }
         }
         if (!_districts.any((x) => x.code == d.code)) setState(() => _districts = [..._districts, d]);
         widget.onChanged(StaffArea(district: d));
@@ -153,19 +190,33 @@ class _StaffAreaPickerState extends State<StaffAreaPicker> {
         ),
         IconButton(tooltip: trs('Find'), onPressed: _busy ? null : _byPin, icon: const Icon(Icons.search)),
       ]),
-      DropdownButtonFormField<int>(
-        // re-created when the district changes elsewhere (PIN quick fill)
-        key: ValueKey('district-${v.district?.code}-${_districts.length}'),
-        initialValue: _districts.any((d) => d.code == v.district?.code) ? v.district!.code : null,
-        isExpanded: true,
-        decoration: InputDecoration(labelText: trs('District')),
-        items: [for (final d in _districts) DropdownMenuItem(value: d.code, child: Text('${d.name}, ${d.stateName}'))],
-        onChanged: (code) {
-          final d = _districts.firstWhere((x) => x.code == code);
-          widget.onChanged(StaffArea(district: d));
-          _run(() => _loadBodies(d));
-        },
-      ),
+      if (widget.showState)
+        DropdownButtonFormField<int>(
+          // re-created when the PIN quick fill picks another state
+          key: ValueKey('state-$_stateCode-${_states.length}'),
+          initialValue: _states.any((s) => s.code == _stateCode) ? _stateCode : null,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: trs('State')),
+          items: [for (final s in _states) DropdownMenuItem(value: s.code, child: Text(s.name))],
+          onChanged: _chooseState,
+        ),
+      if (!widget.showState || _stateCode != null)
+        DropdownButtonFormField<int>(
+          // re-created when the district changes elsewhere (PIN quick fill)
+          key: ValueKey('district-${v.district?.code}-${_districts.length}'),
+          initialValue: _districts.any((d) => d.code == v.district?.code) ? v.district!.code : null,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: trs('District')),
+          items: [
+            for (final d in _districts)
+              DropdownMenuItem(value: d.code, child: Text(widget.showState ? d.name : '${d.name}, ${d.stateName}')),
+          ],
+          onChanged: (code) {
+            final d = _districts.firstWhere((x) => x.code == code);
+            widget.onChanged(StaffArea(district: d));
+            _run(() => _loadBodies(d));
+          },
+        ),
       if (widget.showBlock && v.district != null && _blocks.isNotEmpty)
         DropdownButtonFormField<int?>(
           // re-created when the body is chosen (that clears the block)
