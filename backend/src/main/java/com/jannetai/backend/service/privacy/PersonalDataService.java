@@ -8,6 +8,7 @@ import com.jannetai.backend.entity.enums.Role;
 import com.jannetai.backend.entity.enums.SettingScope;
 import com.jannetai.backend.entity.enums.UserStatus;
 import com.jannetai.backend.exception.ResourceNotFoundException;
+import com.jannetai.backend.repository.AssistantSessionRepository;
 import com.jannetai.backend.repository.ComplaintAppealRepository;
 import com.jannetai.backend.repository.ComplaintRatingRepository;
 import com.jannetai.backend.repository.ComplaintRepository;
@@ -70,6 +71,8 @@ public class PersonalDataService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final DeviceTokenRepository deviceTokenRepository;
     private final OtpVerificationRepository otpVerificationRepository;
+    /** JanNet Sahayak conversations (V38) are deleted with the account's personal data. */
+    private final AssistantSessionRepository assistantSessionRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
     private final SecureRandom random = new SecureRandom();
@@ -144,6 +147,7 @@ public class PersonalDataService {
             otpVerificationRepository.deleteByMobileNumber(previousMobile);
         }
         settingRepository.deleteByScopeAndScopeId(SettingScope.USER, user.getUserId());
+        assistantSessionRepository.deleteAllForUser(user.getUserId());
 
         user.setFullName(ERASED_NAME);
         user.setMobileNumber(placeholderMobile(user.getUserId()));

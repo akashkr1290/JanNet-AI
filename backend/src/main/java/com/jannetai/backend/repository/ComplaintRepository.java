@@ -30,6 +30,9 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
 
     boolean existsByReferenceNumber(String referenceNumber);
 
+    /** JanNet Sahayak: a complaint by its JN reference number (the caller still checks the user's scope). */
+    java.util.Optional<Complaint> findByReferenceNumber(String referenceNumber);
+
     /**
      * V36 location verification queue: open complaints whose location could
      * not be proven (locations.location_verification_status). {@code departmentId}

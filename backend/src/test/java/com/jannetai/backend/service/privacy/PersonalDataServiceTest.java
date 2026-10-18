@@ -4,6 +4,7 @@ import com.jannetai.backend.entity.User;
 import com.jannetai.backend.entity.enums.Role;
 import com.jannetai.backend.entity.enums.SettingScope;
 import com.jannetai.backend.entity.enums.UserStatus;
+import com.jannetai.backend.repository.AssistantSessionRepository;
 import com.jannetai.backend.repository.ComplaintAppealRepository;
 import com.jannetai.backend.repository.ComplaintRatingRepository;
 import com.jannetai.backend.repository.ComplaintRepository;
@@ -45,6 +46,7 @@ class PersonalDataServiceTest {
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private DeviceTokenRepository deviceTokenRepository;
     @Mock private OtpVerificationRepository otpVerificationRepository;
+    @Mock private AssistantSessionRepository assistantSessionRepository;
     @Mock private AuditService auditService;
 
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(4);
@@ -55,7 +57,7 @@ class PersonalDataServiceTest {
     void setUp() {
         service = new PersonalDataService(userRepository, complaintRepository, complaintAppealRepository,
                 complaintRatingRepository, settingRepository, refreshTokenRepository, deviceTokenRepository,
-                otpVerificationRepository, encoder, auditService);
+                otpVerificationRepository, assistantSessionRepository, encoder, auditService);
         citizen = User.builder().userId(42L).role(Role.CITIZEN).status(UserStatus.ACTIVE).fullName("Asha Rao")
                 .mobileNumber("9876543210").email("asha@example.com").passwordHash(encoder.encode("Str0ng!Pass"))
                 .reputationScore(100).build();
@@ -78,6 +80,7 @@ class PersonalDataServiceTest {
         assertThat(encoder.matches("Str0ng!Pass", u.getPasswordHash())).isFalse();
         verify(refreshTokenRepository).revokeAllForUser(eq(42L), any());
         verify(deviceTokenRepository).deleteByUser_UserId(42L);
+        verify(assistantSessionRepository).deleteAllForUser(42L);
         verify(otpVerificationRepository).deleteByMobileNumber("9876543210");
         verify(settingRepository).deleteByScopeAndScopeId(SettingScope.USER, 42L);
         ArgumentCaptor<String> details = ArgumentCaptor.forClass(String.class);

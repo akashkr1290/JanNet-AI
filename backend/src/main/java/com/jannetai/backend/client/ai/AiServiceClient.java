@@ -48,6 +48,7 @@ public class AiServiceClient {
     private static final String PRIORITY_PREDICT_PATH = "/api/v1/ai/priority-predict";
     private static final String BUDGET_PREDICT_PATH = "/api/v1/ai/budget-predict";
     private static final String QUALITY_PATH = "/api/v1/ai/quality"; // audit GAP-032
+    private static final String ASSISTANT_COMPOSE_PATH = "/api/v1/ai/assistant/compose"; // JanNet Sahayak v1
     private static final String API_KEY_HEADER = "X-Internal-Api-Key";
 
     private final RestTemplate restTemplate;
@@ -314,6 +315,46 @@ public class AiServiceClient {
             } catch (Exception e) {
                 throw new AiServiceCallException("RESPONSE_PARSE_FAILED",
                         "Failed to parse ai-service quality response.", e);
+            }
+        });
+    }
+
+    /**
+     * JanNet Sahayak v1: {@code POST /api/v1/ai/assistant/compose} - Gemini wording
+     * of an assistant answer from the given sources, or a guided-filing draft.
+     * ai-service itself never fails this call for Gemini problems (it answers
+     * {@code answered=false}); this only throws for transport problems.
+     *
+     * @throws AiServiceCallException on connectivity failure, non-2xx or unparseable body
+     */
+    public AiAssistantComposeResult composeAssistant(AiAssistantComposeRequest request) {
+        return timed("assistant_compose", () -> {
+            String url = properties.getBaseUrl() + ASSISTANT_COMPOSE_PATH;
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set(API_KEY_HEADER, properties.getApiKey());
+            withRequestId(headers);
+            String requestBody;
+            try {
+                requestBody = aiServiceObjectMapper.writeValueAsString(request);
+            } catch (Exception e) {
+                throw new AiServiceCallException("REQUEST_SERIALIZATION_FAILED",
+                        "Failed to serialize the ai-service assistant request.", e);
+            }
+            ResponseEntity<String> response;
+            try {
+                response = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(requestBody, headers), String.class);
+            } catch (HttpStatusCodeException e) {
+                throw translateErrorEnvelope(e);
+            } catch (ResourceAccessException e) {
+                throw new AiServiceCallException("AI_SERVICE_UNREACHABLE",
+                        "Could not reach ai-service at " + url + ": " + e.getMessage(), e);
+            }
+            try {
+                return aiServiceObjectMapper.readValue(response.getBody(), AiAssistantComposeResult.class);
+            } catch (Exception e) {
+                throw new AiServiceCallException("RESPONSE_PARSE_FAILED",
+                        "Failed to parse ai-service assistant response.", e);
             }
         });
     }

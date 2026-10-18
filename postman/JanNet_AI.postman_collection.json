@@ -9128,6 +9128,114 @@
           }
         }
       ]
+    },
+    {
+      "name": "20. Assistant - JanNet Sahayak (v1)",
+      "item": [
+        {
+          "name": "Greeting (menu)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"hi\",\n  \"language\": \"EN\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/assistant/messages",
+            "description": "JanNet Sahayak v1. Rule-based answer with suggestion chips. Keep the returned sessionId and send it with the next message to continue the conversation. Personal data (phone, e-mail, own name) is removed before the message is stored or sent to the AI.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Status of a complaint (Hindi)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"JN-2026-000001 कहाँ है?\",\n  \"language\": \"HI\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/assistant/messages",
+            "description": "Status from the signed-in user's own scope (ComplaintService). A complaint the user may not open is answered exactly like a number that does not exist.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Guided filing draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"school ke paas bada gaddha hai\",\n  \"language\": \"HI\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/assistant/messages",
+            "description": "REPORT_DRAFT: a REPORT_DRAFT card and a START_REPORT action whose value is the description for the Submit form. Nothing is submitted. Gemini (free tier) only tidies the wording; without it the citizen's own words are used.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Help articles (Hindi)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/assistant/articles?language=HI",
+            "description": "The 20 help articles in the language (English where a translation is missing).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [

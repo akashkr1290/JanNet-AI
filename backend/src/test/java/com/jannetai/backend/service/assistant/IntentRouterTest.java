@@ -1,0 +1,111 @@
+package com.jannetai.backend.service.assistant;
+
+import com.jannetai.backend.entity.enums.ComplaintCategory;
+import com.jannetai.backend.service.assistant.IntentRouter.Intent;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** JanNet Sahayak: fixed-rule routing in English, Hinglish and the app's Indian languages. */
+class IntentRouterTest {
+
+    @ParameterizedTest(name = "{0} -> {1}")
+    @CsvSource(delimiter = '|', nullValues = "-", value = {
+            // greetings, thanks, emergency
+            "hi|GREETING|-|-",
+            "Hello there|GREETING|-|-",
+            "नमस्ते|GREETING|-|-",
+            "thanks|THANKS|-|-",
+            "धन्यवाद|THANKS|-|-",
+            "there is fire in the building|EMERGENCY|-|-",
+            "आग लगी है|EMERGENCY|-|-",
+            // my complaints
+            "where is my complaint|MY_COMPLAINTS|-|-",
+            "meri shikayat kahan hai|MY_COMPLAINTS|-|-",
+            "मेरी शिकायत कहाँ है?|MY_COMPLAINTS|-|-",
+            "माझी तक्रार कुठे आहे?|MY_COMPLAINTS|-|-",
+            "আমার অভিযোগ কোথায়?|MY_COMPLAINTS|-|-",
+            "என் புகார் எங்கே உள்ளது?|MY_COMPLAINTS|-|-",
+            "నా ఫిర్యాదు ఎక్కడ ఉంది?|MY_COMPLAINTS|-|-",
+            "ನನ್ನ ದೂರು ಎಲ್ಲಿದೆ?|MY_COMPLAINTS|-|-",
+            "is my pothole fixed yet?|MY_COMPLAINTS|POTHOLE|-",
+            // rejection and appeal
+            "why was my complaint rejected|REJECTION_REASON|-|-",
+            "reject kyu hua|REJECTION_REASON|-|-",
+            "मेरी शिकायत अस्वीकार क्यों हुई|REJECTION_REASON|-|-",
+            "என் புகார் ஏன் நிராகரிக்கப்பட்டது?|REJECTION_REASON|-|-",
+            "my complaint got rejected, how do I appeal|HELP_ARTICLE|-|appeal",
+            "appeal kaise kare|HELP_ARTICLE|-|appeal",
+            // guided filing
+            "there is a big pothole near the school gate|REPORT_DRAFT|POTHOLE|-",
+            "gali me gaddha hai|REPORT_DRAFT|POTHOLE|-",
+            "सड़क पर बड़ा गड्ढा है|REPORT_DRAFT|POTHOLE|-",
+            "रस्त्यावर खड्डा आहे|REPORT_DRAFT|POTHOLE|-",
+            "রাস্তায় গর্ত আছে|REPORT_DRAFT|POTHOLE|-",
+            "சாலையில் குழி உள்ளது|REPORT_DRAFT|POTHOLE|-",
+            "రోడ్డుపై గుంత ఉంది|REPORT_DRAFT|POTHOLE|-",
+            "ರಸ್ತೆಯಲ್ಲಿ ಗುಂಡಿ ಇದೆ|REPORT_DRAFT|POTHOLE|-",
+            "garbage is lying near the market for 5 days|REPORT_DRAFT|GARBAGE_OVERFLOW|-",
+            "kooda pada hai market ke paas|REPORT_DRAFT|GARBAGE_OVERFLOW|-",
+            "कूड़ा कई दिन से पड़ा है|REPORT_DRAFT|GARBAGE_OVERFLOW|-",
+            "street light not working in my lane|REPORT_DRAFT|BROKEN_STREET_LIGHT|-",
+            "open manhole on the main road|REPORT_DRAFT|OPEN_MANHOLE|-",
+            "pipe burst and water is leaking|REPORT_DRAFT|WATER_LEAKAGE|-",
+            "naali band hai paani bhar gaya|REPORT_DRAFT|GENERAL|-",
+            "how do I report a pothole?|HELP_ARTICLE|POTHOLE|how-to-report",
+            "I want to report something|REPORT_START|-|-",
+            // help and open questions
+            "what does in progress mean|HELP_ARTICLE|-|-",
+            "स्थिति का मतलब क्या है|HELP_ARTICLE|-|-",
+            "how to change language|OPEN_QUESTION|-|-",
+            "who will win the cricket world cup|OPEN_QUESTION|-|-",
+    })
+    void routes(String text, Intent intent, ComplaintCategory category, String slug) {
+        IntentRouter.Routed r = IntentRouter.route(text);
+        assertThat(r.intent()).isEqualTo(intent);
+        assertThat(r.category()).isEqualTo(category);
+        assertThat(r.articleSlug()).isEqualTo(slug);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "status of JN-2026-000123|JN-2026-000123",
+            "jn 2026 45 kahan hai|JN-2026-000045",
+            "JN-2026-123 rejected kyu|JN-2026-000123",
+    })
+    void referenceNumberWinsOverEverythingElse(String text, String reference) {
+        IntentRouter.Routed r = IntentRouter.route(text);
+        assertThat(r.intent()).isEqualTo(Intent.COMPLAINT_STATUS);
+        assertThat(r.referenceNumber()).isEqualTo(reference);
+    }
+
+    @Test
+    void everySuggestionChipRoutesInEveryLanguage() {
+        for (String lang : AssistantTexts.LANGUAGES) {
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_WHERE, lang)).intent())
+                    .as(lang).isEqualTo(Intent.MY_COMPLAINTS);
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_REJECTED, lang)).intent())
+                    .as(lang).isEqualTo(Intent.REJECTION_REASON);
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_REPORT, lang)).articleSlug())
+                    .as(lang).isEqualTo("how-to-report");
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_TIME, lang)).articleSlug())
+                    .as(lang).isEqualTo("timelines");
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_APPEAL, lang)).articleSlug())
+                    .as(lang).isEqualTo("appeal");
+        }
+    }
+
+    @Test
+    void emptyTextIsAGreeting() {
+        assertThat(IntentRouter.route("  ").intent()).isEqualTo(Intent.GREETING);
+        assertThat(IntentRouter.route(null).intent()).isEqualTo(Intent.GREETING);
+    }
+
+    @Test
+    void normaliseKeepsIndicVowelSignsAndDropsPunctuation() {
+        assertThat(IntentRouter.normalise("मेरी शिकायत कहाँ है?")).isEqualTo(" मेरी शिकायत कहाँ है ");
+        assertThat(IntentRouter.normalise("Where, IS my complaint?!")).isEqualTo(" where is my complaint ");
+    }
+}

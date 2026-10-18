@@ -208,6 +208,14 @@ app:
       words: ${COMPLAINT_PROFANITY_WORDS:}
       wordlist-path: ${COMPLAINT_PROFANITY_WORDLIST_PATH:}
       action: ${COMPLAINT_PROFANITY_ACTION:REJECT}
+  assistant:
+    # JanNet Sahayak v1 (in-app assistant, AssistantService). llm-enabled=false
+    # keeps every answer rule-based (no Gemini calls via ai-service).
+    # Conversations are deleted retention-days after their last message.
+    llm-enabled: ${ASSISTANT_LLM_ENABLED:true}
+    max-messages-per-minute: ${ASSISTANT_MAX_MESSAGES_PER_MINUTE:20}
+    retention-days: ${ASSISTANT_RETENTION_DAYS:90}
+    retention-cron: "${ASSISTANT_RETENTION_CRON:0 30 3 * * *}"
   ai-service:
     # Phase 8: AI Analysis Module integration (SRS 15.4/20.3). apiKey must
     # match ai-service's own AI_SERVICE_API_KEY exactly (shared secret,
