@@ -152,8 +152,23 @@ cmd_deploy_web() {
   cid=$(docker create jannet-web-build:pilot) || die "docker create failed"
   docker cp "$cid:/src/build/web/." "$WEB_DIST/" >/dev/null && docker rm -f "$cid" >/dev/null || die "docker cp failed"
   grep -q "${WORKER_URL#https://}" "$WEB_DIST/main.dart.js" || die "the Worker URL is not compiled into main.dart.js"
-  (cd "$WEB_DIST" && npx --yes wrangler@4 pages deploy . --project-name "$PAGES_PROJECT" --branch main \
-      --commit-hash "$(git -C "$REPO" rev-parse --short HEAD)" --commit-dirty=true) 2>&1 | tail -3
+  # Under WSL, wrangler (often the Windows build reached through npx) fails on a
+  # \\wsl$ path - publish from a copy in the Windows user folder instead.
+  local src="$WEB_DIST" winhome="" hash rc
+  if grep -qi microsoft /proc/version 2>/dev/null && command -v cmd.exe >/dev/null 2>&1; then
+    winhome=$(cd /mnt/c 2>/dev/null && cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')
+    [ -n "$winhome" ] && winhome=$(wslpath -u "$winhome" 2>/dev/null) || winhome=""
+  fi
+  if [ -n "$winhome" ] && [ -d "$winhome" ]; then
+    src="$winhome/jannet-web-dist"
+    rm -rf "$src" && mkdir -p "$src" && cp -r "$WEB_DIST/." "$src/" || die "could not copy the build to $src"
+    echo "WSL: publishing from $src"
+  fi
+  hash=$(git -C "$REPO" rev-parse --short HEAD)
+  (cd "$src" && npx --yes wrangler@4 pages deploy . --project-name "$PAGES_PROJECT" --branch main \
+      --commit-hash "$hash" --commit-dirty=true) > /tmp/wrangler-pages.log 2>&1; rc=$?
+  grep -E "Success|Deployment complete|https://" /tmp/wrangler-pages.log | tail -3
+  [ $rc -eq 0 ] || { tail -15 /tmp/wrangler-pages.log; die "wrangler pages deploy failed (log: /tmp/wrangler-pages.log)"; }
   printf '%s -> HTTP %s\n' "$PAGES_URL" "$(code "$PAGES_URL")"
 }
 
@@ -180,7 +195,15 @@ cmd_backup() {
   f="$dir/jannet_ai_$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
   ssh_ 'sudo docker exec jannet-mysql sh -c "MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysqldump -uroot --single-transaction --routines --triggers --no-tablespaces jannet_ai" | gzip' > "$f" \
     || { rm -f "$f"; die "mysqldump failed"; }
-  gzip -dc "$f" | head -c 2000 | grep -q "MySQL dump" || { rm -f "$f"; die "backup looks empty"; }
+  # Check the whole file, then its last line. (The old "head -c | grep -q" check let
+  # gzip die of SIGPIPE, which pipefail turned into a failure that deleted good backups.)
+  local last
+  gzip -t "$f" 2>/dev/null || { rm -f "$f"; die "backup is not a complete gzip file"; }
+  last=$(gzip -dc "$f" | tail -n 1)
+  case "$last" in
+    *"Dump completed"*) ;;
+    *) rm -f "$f"; die "backup is incomplete (no 'Dump completed' line)" ;;
+  esac
   chmod 600 "$f"
   echo "Backup written: $f ($(du -h "$f" | cut -f1))"
 }

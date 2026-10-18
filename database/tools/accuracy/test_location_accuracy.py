@@ -141,10 +141,13 @@ class EndToEndTest(unittest.TestCase):
                     la.main(["offices", str(pts), "--base-url", f"http://127.0.0.1:{server.server_port}/api/v1",
                              "--user", "9999999999", "--per-minute", "6000", "--out", str(out)])
                 report = (out / "report.md").read_text()
-                rows = list(csv.DictReader((out / "results.csv").open()))
-                mism = list(csv.DictReader((out / "mismatches.csv").open()))
+                with (out / "results.csv").open(newline="") as fh:
+                    rows = list(csv.DictReader(fh))
+                with (out / "mismatches.csv").open(newline="") as fh:
+                    mism = list(csv.DictReader(fh))
         finally:
             server.shutdown()
+            server.server_close()
         self.assertEqual(len(rows), 3)
         self.assertEqual([r["ref"] for r in mism], ["Wrong PIN SO"])
         self.assertIn("| District | 2 | 2 | 100.0 % |", report)
@@ -166,6 +169,7 @@ class EndToEndTest(unittest.TestCase):
                     api.login("9999999999", "wrong")
         finally:
             server.shutdown()
+            server.server_close()
         self.assertIn("HTTP 401", str(e.exception))
 
 

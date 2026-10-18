@@ -1,5 +1,15 @@
 import '../../core/api/api_client.dart';
+import '../complaints/models/complaint.dart';
 import 'models/dashboard_models.dart';
+
+/// One page of the complaints behind a dashboard KPI tile.
+class KpiComplaintPage {
+  final List<ComplaintSummary> items;
+  final int total;
+  final bool last;
+
+  const KpiComplaintPage({required this.items, required this.total, required this.last});
+}
 
 /// Thin wrapper over GovernmentDashboardController (backend, Phase 16).
 /// Every method's [departmentId] follows the same convention as the
@@ -23,6 +33,24 @@ class DashboardApi {
       query: departmentId != null ? {'departmentId': departmentId} : null,
     ) as Map<String, dynamic>;
     return GovernmentDashboardData.fromJson(json);
+  }
+
+  /// GET /api/v1/dashboard/complaints - the complaints behind a KPI tile
+  /// ([kpi] = TOTAL, OPEN, RESOLVED or ESCALATED), newest first, with the
+  /// same role scoping as [overview].
+  Future<KpiComplaintPage> kpiComplaints(String kpi, {int? departmentId, int page = 0, int pageSize = 30}) async {
+    final json = await _client.get('/dashboard/complaints', query: {
+      'kpi': kpi,
+      if (departmentId != null) 'departmentId': departmentId,
+      'page': page,
+      'pageSize': pageSize,
+    }) as Map<String, dynamic>;
+    final content = (json['content'] as List?) ?? const [];
+    return KpiComplaintPage(
+      items: content.map((e) => ComplaintSummary.fromJson(e as Map<String, dynamic>)).toList(),
+      total: (json['totalElements'] as num?)?.toInt() ?? content.length,
+      last: json['last'] as bool? ?? true,
+    );
   }
 
   /// GET /api/v1/dashboard/department-comparison - ADMIN/SUPER_ADMIN

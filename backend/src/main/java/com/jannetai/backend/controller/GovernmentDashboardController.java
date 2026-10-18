@@ -1,12 +1,15 @@
 package com.jannetai.backend.controller;
 
+import com.jannetai.backend.dto.complaint.ComplaintSummaryResponse;
 import com.jannetai.backend.dto.dashboard.AdminDashboardSummaryResponse;
+import com.jannetai.backend.dto.dashboard.DashboardKpi;
 import com.jannetai.backend.dto.dashboard.DepartmentComparisonResponse;
 import com.jannetai.backend.dto.dashboard.GovernmentDashboardResponse;
 import com.jannetai.backend.security.UserPrincipal;
 import com.jannetai.backend.service.dashboard.GovernmentDashboardService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -66,6 +69,21 @@ public class GovernmentDashboardController {
      * Javadoc for why DEPARTMENT_HEAD never reaches this endpoint at
      * all).
      */
+    /**
+     * Drill-down: the complaints behind a KPI tile ({@code kpi} = TOTAL, OPEN,
+     * RESOLVED or ESCALATED), paged, newest first. Same roles and department
+     * scoping as {@code /overview}.
+     */
+    @GetMapping("/complaints")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'ADMIN', 'SUPER_ADMIN')")
+    public Page<ComplaintSummaryResponse> kpiComplaints(@AuthenticationPrincipal UserPrincipal principal,
+                                                        @RequestParam DashboardKpi kpi,
+                                                        @RequestParam(name = "departmentId", required = false) Long departmentId,
+                                                        @RequestParam(defaultValue = "0") int page,
+                                                        @RequestParam(defaultValue = "20") int pageSize) {
+        return governmentDashboardService.kpiComplaints(principal.getUser(), departmentId, kpi, page, pageSize);
+    }
+
     @GetMapping("/department-comparison")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public List<DepartmentComparisonResponse> departmentComparison() {

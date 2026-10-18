@@ -68,9 +68,9 @@ import java.util.Set;
 public class AnalyticsAggregationService {
 
     /** Open work; VERIFIED = routed to a department, awaiting the Department Head's officer assignment (pilot 2026-09-30). */
-    private static final Set<ComplaintStatus> OPEN_STATUSES = Set.of(
+    static final Set<ComplaintStatus> OPEN_STATUSES = Set.of(
             ComplaintStatus.VERIFIED, ComplaintStatus.ASSIGNED, ComplaintStatus.IN_PROGRESS);
-    private static final Set<ComplaintStatus> RESOLVED_STATUSES = Set.of(
+    static final Set<ComplaintStatus> RESOLVED_STATUSES = Set.of(
             ComplaintStatus.RESOLVED, ComplaintStatus.CLOSED);
 
     private final ComplaintRepository complaintRepository;

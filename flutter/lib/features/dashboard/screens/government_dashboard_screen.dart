@@ -9,6 +9,7 @@ import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../dashboard_api.dart';
 import '../models/dashboard_models.dart';
+import 'kpi_complaints_screen.dart';
 import '../../../core/l10n/tr_text.dart';
 
 /// Phase 16 (Government Dashboard Module, SRS 15.10 / 16.3 "Government
@@ -35,12 +36,10 @@ import '../../../core/l10n/tr_text.dart';
 /// Phase 16 KNOWN LIMITATION, not a silently simplified requirement.
 ///
 /// DRILL-DOWN (SRS 15.10 Actions: "drill down into any KPI to underlying
-/// complaint list"): out of scope for this screen - see
-/// GovernmentDashboardController's Javadoc for why (the existing Officer
-/// Queue screen, filtered, already IS that underlying list; wiring a tap
-/// on a specific KPI tile to navigate there with a pre-applied filter is
-/// left for a future phase's polish pass, not a Phase 16 requirement
-/// this screen silently drops - see PROJECT_INTEGRATION.md Section 6).
+/// complaint list"): tapping Total / Open / Resolved / Escalated (and Avg
+/// Resolution, which lists the resolved complaints) opens
+/// kpi_complaints_screen.dart with the complaints behind that number
+/// (GET /api/v1/dashboard/complaints, same role scoping).
 ///
 /// UI redesign: reference dashboard styling - coloured KPI cards, SLA card
 /// with a written rating, bar-list cards for trends and ward density, and
@@ -151,15 +150,21 @@ class _GovernmentDashboardScreenState extends State<GovernmentDashboardScreen> {
                 JanStatGrid(
                   maxColumns: 5,
                   children: [
-                    _kpiTile('Total', kpis.totalComplaints.toString(), Icons.apartment_rounded, JanTone.navy),
-                    _kpiTile('Open', kpis.openComplaints.toString(), Icons.pending_actions_rounded, JanTone.amber),
-                    _kpiTile('Resolved', kpis.resolvedComplaints.toString(), Icons.task_alt_rounded, JanTone.teal),
-                    _kpiTile('Escalated', kpis.escalatedComplaints.toString(), Icons.priority_high_rounded, JanTone.light),
+                    _kpiTile('Total', kpis.totalComplaints.toString(), Icons.apartment_rounded, JanTone.navy,
+                        onTap: () => _openKpi('TOTAL', 'All complaints')),
+                    _kpiTile('Open', kpis.openComplaints.toString(), Icons.pending_actions_rounded, JanTone.amber,
+                        onTap: () => _openKpi('OPEN', 'Open complaints')),
+                    _kpiTile('Resolved', kpis.resolvedComplaints.toString(), Icons.task_alt_rounded, JanTone.teal,
+                        onTap: () => _openKpi('RESOLVED', 'Resolved complaints')),
+                    _kpiTile('Escalated', kpis.escalatedComplaints.toString(), Icons.priority_high_rounded, JanTone.light,
+                        onTap: () => _openKpi('ESCALATED', 'Escalated complaints')),
                     _kpiTile(
                       'Avg Resolution',
                       kpis.avgResolutionHours != null ? '${kpis.avgResolutionHours!.toStringAsFixed(1)}h' : 'N/A',
                       Icons.timer_outlined,
                       JanTone.blue,
+                      // the average is taken over the resolved complaints
+                      onTap: () => _openKpi('RESOLVED', 'Resolved complaints'),
                     ),
                   ],
                 ),
@@ -255,8 +260,16 @@ class _GovernmentDashboardScreenState extends State<GovernmentDashboardScreen> {
     );
   }
 
-  Widget _kpiTile(String label, String value, IconData icon, JanTone tone, {String? caption}) {
-    return JanStatCard(label: label, value: value, icon: icon, tone: tone, caption: caption);
+  Widget _kpiTile(String label, String value, IconData icon, JanTone tone, {String? caption, VoidCallback? onTap}) {
+    return JanStatCard(label: label, value: value, icon: icon, tone: tone, caption: caption, onTap: onTap);
+  }
+
+  /// KPI drill-down (SRS 15.10 "drill down into any KPI to underlying complaint list").
+  Future<void> _openKpi(String kpi, String title) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => KpiComplaintsScreen(kpi: kpi, title: title, departmentId: widget.departmentId),
+    ));
+    if (mounted) _refresh();
   }
 
   Widget _slaComplianceBar(double percent) {

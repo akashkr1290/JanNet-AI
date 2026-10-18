@@ -1,17 +1,26 @@
 package com.jannetai.backend.service.dashboard;
 
 import com.jannetai.backend.dto.dashboard.AdminDashboardSummaryResponse;
+import com.jannetai.backend.dto.complaint.ComplaintSummaryResponse;
 import com.jannetai.backend.dto.dashboard.CategoryTrendPointResponse;
+import com.jannetai.backend.dto.dashboard.DashboardKpi;
 import com.jannetai.backend.dto.dashboard.DepartmentComparisonResponse;
 import com.jannetai.backend.dto.dashboard.GovernmentDashboardResponse;
 import com.jannetai.backend.dto.dashboard.RoutingRuleEffectivenessResponse;
 import com.jannetai.backend.dto.dashboard.WardHeatmapPointResponse;
+import com.jannetai.backend.entity.Complaint;
 import com.jannetai.backend.entity.User;
 import com.jannetai.backend.entity.enums.Role;
+import com.jannetai.backend.repository.ComplaintRepository;
 import com.jannetai.backend.service.dashboard.AnalyticsCacheService.DashboardSnapshot;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -64,6 +73,34 @@ import java.util.List;
 public class GovernmentDashboardService {
 
     private final AnalyticsCacheService analyticsCacheService;
+    private final ComplaintRepository complaintRepository;
+
+    /**
+     * Drill-down (SRS 15.10 Actions: "drill down into any KPI to underlying
+     * complaint list"): the complaints behind one KPI tile, newest first, with
+     * the same role scoping as the tiles (a Department Head only ever gets
+     * their own department). The list is live; the tile counts come from the
+     * analytics cache, so right after a change they can differ for a few
+     * minutes.
+     */
+    @Transactional(readOnly = true)
+    public Page<ComplaintSummaryResponse> kpiComplaints(User requester, Long requestedDepartmentId, DashboardKpi kpi,
+                                                        int page, int pageSize) {
+        Long dept = resolveScopedDepartmentId(requester, requestedDepartmentId);
+        Pageable p = PageRequest.of(Math.max(page, 0), Math.min(Math.max(pageSize, 1), 100),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Complaint> result = switch (kpi) {
+            case TOTAL -> dept == null ? complaintRepository.findAll(p)
+                    : complaintRepository.findByDepartment_DepartmentId(dept, p);
+            case OPEN -> dept == null ? complaintRepository.findByStatusIn(AnalyticsAggregationService.OPEN_STATUSES, p)
+                    : complaintRepository.findByDepartment_DepartmentIdAndStatusIn(dept, AnalyticsAggregationService.OPEN_STATUSES, p);
+            case RESOLVED -> dept == null ? complaintRepository.findByStatusIn(AnalyticsAggregationService.RESOLVED_STATUSES, p)
+                    : complaintRepository.findByDepartment_DepartmentIdAndStatusIn(dept, AnalyticsAggregationService.RESOLVED_STATUSES, p);
+            case ESCALATED -> dept == null ? complaintRepository.findByIsEscalated(true, p)
+                    : complaintRepository.findByDepartment_DepartmentIdAndIsEscalated(dept, true, p);
+        };
+        return result.map(ComplaintSummaryResponse::from);
+    }
 
     /**
      * SRS 16.3 "Government Dashboard (Overview)" - KPI tiles, heatmap,

@@ -388,6 +388,20 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
     /** Jurisdiction-wide equivalent of {@link #findByDepartment_DepartmentIdAndStatusIn}. */
     List<Complaint> findByStatusIn(Collection<ComplaintStatus> statuses);
 
+    // ---- Dashboard drill-down (GovernmentDashboardService#kpiComplaints): the complaints
+    // behind each KPI tile, paged, with exactly the tile counts' conditions above.
+
+    Page<Complaint> findByStatusIn(Collection<ComplaintStatus> statuses, Pageable pageable);
+
+    Page<Complaint> findByIsEscalated(Boolean isEscalated, Pageable pageable);
+
+    Page<Complaint> findByDepartment_DepartmentId(Long departmentId, Pageable pageable);
+
+    Page<Complaint> findByDepartment_DepartmentIdAndStatusIn(Long departmentId, Collection<ComplaintStatus> statuses,
+                                                            Pageable pageable);
+
+    Page<Complaint> findByDepartment_DepartmentIdAndIsEscalated(Long departmentId, Boolean isEscalated, Pageable pageable);
+
     /**
      * Admin Dashboard "duplicate-merge rate" (SRS 24.3) numerator/
      * denominator support: how many complaints ever reached the

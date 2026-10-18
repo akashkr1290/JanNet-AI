@@ -95,3 +95,6 @@ deployment/cloudflare/worker/.proxy-key.*.json
 # location accuracy harness (database/tools/accuracy): exported points and run output
 up_bihar_offices.tsv
 accuracy-*/
+
+# Kotlin/Gradle compiler cache (Android build)
+.kotlin/
