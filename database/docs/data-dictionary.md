@@ -256,6 +256,56 @@ Changed tables:
 
 ---
 
+## JanNet Sahayak assistant (V38)
+
+Conversations with the in-app assistant and its help articles. The stored
+message text is already redacted by the backend (phone numbers, e-mail
+addresses and the user's own name removed). Sessions are deleted 90 days after
+their last message (backend daily job) and when the user erases the account.
+
+### assistant_sessions
+
+| Column | Type | Null | Key | Notes |
+|---|---|---|---|---|
+| session_id | BIGINT UNSIGNED | NO | PK | |
+| public_id | CHAR(36) | NO | UQ | UUID sent to the app; the numeric id is never exposed |
+| user_id | BIGINT UNSIGNED | NO | FK -> users.user_id (CASCADE) | owner; a session is only ever read by its owner |
+| language | VARCHAR(2) | NO | | EN, HI, MR, BN, TA, TE, KN |
+| message_count | INT | NO | | >= 0 |
+| created_at / last_message_at | TIMESTAMP | NO | IDX (user_id, last_message_at), IDX (last_message_at) | retention uses last_message_at |
+
+### assistant_messages
+
+| Column | Type | Null | Key | Notes |
+|---|---|---|---|---|
+| message_id | BIGINT UNSIGNED | NO | PK | |
+| session_id | BIGINT UNSIGNED | NO | FK -> assistant_sessions (CASCADE) | |
+| sender | VARCHAR(10) | NO | | USER, ASSISTANT |
+| message_text | VARCHAR(2000) | NO | | redacted text |
+| intent | VARCHAR(40) | YES | | e.g. COMPLAINT_STATUS, HELP_ARTICLE, REPORT_DRAFT |
+| answer_source | VARCHAR(20) | YES | | RULE, ARTICLE, AI, FALLBACK (assistant rows) |
+| tools_used | VARCHAR(255) | YES | | backend look-ups used for the answer, comma-separated |
+| complaint_id | BIGINT UNSIGNED | YES | FK -> complaints (SET NULL) | complaint the answer was about |
+| created_at | TIMESTAMP | NO | IDX | |
+
+### help_articles
+
+| Column | Type | Null | Key | Notes |
+|---|---|---|---|---|
+| article_id | BIGINT UNSIGNED | NO | PK | |
+| slug | VARCHAR(60) | NO | UQ (slug, language) | lower-case letters, digits, hyphens |
+| language | VARCHAR(2) | NO | IDX (language, is_active, sort_order) | one row per language |
+| topic | VARCHAR(20) | NO | | REPORT, TRACK, AFTER, ACCOUNT |
+| title | VARCHAR(200) | NO | | |
+| body | VARCHAR(2000) | NO | | the only text the assistant may answer FAQ questions from |
+| keywords | VARCHAR(1000) | NO | | comma-separated phrases for matching (EN/HI rows include Hinglish) |
+| sort_order | INT | NO | | |
+| is_active | BOOLEAN | NO | | |
+| created_at / updated_at | TIMESTAMP | NO | | |
+
+Seeded with 20 articles in all 7 languages (non EN/HI text machine-assisted,
+native review pending).
+
 ## Decision notes (things this phase changed or resolved vs. the source documents)
 
 1. **Database engine: MySQL, not PostgreSQL.** The SRS/BRD/FRS document's own
