@@ -57,10 +57,14 @@ class JanShell extends StatelessWidget {
   /// wide layout and at the top of the page on phones. Null shows [roleLabel].
   final Widget? identity;
 
+  /// Optional floating button (the citizen's JanNet Sahayak button).
+  final Widget? floatingActionButton;
+
   const JanShell({
     super.key,
     required this.roleLabel,
     this.identity,
+    this.floatingActionButton,
     required this.destinations,
     required this.currentIndex,
     required this.onDestinationSelected,
@@ -102,6 +106,7 @@ class JanShell extends StatelessWidget {
 
     if (wide) {
       return Scaffold(
+        floatingActionButton: floatingActionButton,
         body: Row(
           children: [
             _SideRail(
@@ -126,6 +131,7 @@ class JanShell extends StatelessWidget {
     }
 
     return Scaffold(
+      floatingActionButton: floatingActionButton,
       appBar: AppBar(
         // Scales down rather than overflowing when a role has several actions.
         title: const FittedBox(

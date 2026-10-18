@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide Text;
 import 'package:image_picker/image_picker.dart';
 
+import '../complaint_prefill.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/platform_status.dart';
 import '../../../core/widgets/error_text.dart';
@@ -84,9 +85,28 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
   @override
   void initState() {
     super.initState();
+    // JanNet Sahayak v1: a description the assistant drafted comes first; a
+    // restored draft only fills an empty description box.
+    _applyAssistantPrefill();
+    ComplaintPrefill.description.addListener(_applyAssistantPrefill);
     _restoreDraftIfAny();
     // Gap-backlog Patch 32/45 (Sep 2026 audit): auto-save on every edit.
     _descriptionController.addListener(_saveDraft);
+  }
+
+  /// Guided filing: puts the assistant's description in the box (also when this
+  /// screen is already open) - the citizen can still change it.
+  void _applyAssistantPrefill() {
+    final text = ComplaintPrefill.take();
+    if (text == null || text.trim().isEmpty) return;
+    final value = text.trim().length > 500 ? text.trim().substring(0, 500) : text.trim();
+    _descriptionController.text = value;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('The assistant filled in the description. Check it, then add the photo and the place.'),
+      ));
+    });
   }
 
   Future<void> _restoreDraftIfAny() async {
@@ -127,6 +147,7 @@ class _ComplaintSubmissionScreenState extends State<ComplaintSubmissionScreen> {
 
   @override
   void dispose() {
+    ComplaintPrefill.description.removeListener(_applyAssistantPrefill);
     _descriptionController.dispose();
     super.dispose();
   }

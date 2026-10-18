@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/widgets/jan_shell.dart';
+import '../../assistant/assistant_screen.dart';
 import '../../auth/auth_api.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../dashboard/screens/citizen_dashboard_screen.dart';
@@ -63,6 +64,15 @@ class _ComplaintHomeScreenState extends State<ComplaintHomeScreen> {
   void _openSettings() =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalSettingsScreen()));
 
+  /// JanNet Sahayak v1: the chat can send the citizen to the Submit tab (with a
+  /// drafted description, see ComplaintPrefill) or to My Complaints.
+  Future<void> _openAssistant() async {
+    final exit = await Navigator.of(context)
+        .push<AssistantExit>(MaterialPageRoute(builder: (_) => const AssistantScreen()));
+    if (!mounted || exit == null) return;
+    setState(() => _tab = exit == AssistantExit.report ? 1 : 2);
+  }
+
   // UI redesign: the shared adaptive JanShell (bottom navigation on phones,
   // navy side rail on web). Same four tabs, same localized labels.
   @override
@@ -76,6 +86,13 @@ class _ComplaintHomeScreenState extends State<ComplaintHomeScreen> {
           currentIndex: _tab,
           onDestinationSelected: (i) => setState(() => _tab = i),
           onLogout: _logout,
+          floatingActionButton: FloatingActionButton.extended(
+            heroTag: 'jannet-sahayak',
+            tooltip: trs('Ask JanNet Sahayak'),
+            onPressed: _openAssistant,
+            icon: const Icon(Icons.support_agent_rounded),
+            label: const Text('Ask Sahayak'),
+          ),
           actions: [
             JanShellAction(icon: Icons.notifications_outlined, tooltip: trs('Notifications'), onPressed: _openNotifications),
             JanShellAction(icon: Icons.settings_outlined, tooltip: trs(AppStrings.of('nav_settings')), onPressed: _openSettings),
