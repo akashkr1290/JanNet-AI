@@ -13,6 +13,7 @@ import logging
 
 from fastapi import FastAPI, Request
 
+from app.api.routes.assistant import router as assistant_router
 from app.api.routes.budget_predict import router as budget_predict_router
 from app.api.routes.classify import router as classify_router
 from app.api.routes.duplicate_check import router as duplicate_check_router
@@ -64,6 +65,7 @@ app.include_router(priority_predict_router)
 app.include_router(budget_predict_router)
 app.include_router(monitoring_router)
 app.include_router(quality_router)  # audit GAP-032
+app.include_router(assistant_router)  # JanNet Sahayak v1
 
 
 @app.on_event("startup")

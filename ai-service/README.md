@@ -62,14 +62,18 @@ app/
     deps.py               internal API-key auth dependency
     routes/
       classify.py          POST /api/v1/ai/classify
+      assistant.py         POST /api/v1/ai/assistant/compose (JanNet Sahayak v1)
       health.py             GET /health (addition, not SRS-named)
   schemas/
     classify.py            ClassifyRequest/ClassifyResponse
+    assistant.py           ComposeRequest/ComposeResponse (assistant)
     common.py               ErrorResponse (SRS 20.6 envelope)
   services/
     preprocessing.py        OpenCV quality gate + normalization (SRS 21.3)
     yolo_service.py          YOLOv11 model-loading + inference wrapper (SRS 21.1)
     gemini_service.py        Gemini cross-validation + fallback (SRS 21.2)
+    assistant_service.py     Assistant wording: grounded answers with citations,
+                             guided-filing drafts, PII scrub, per-minute limit
     ocr_service.py            OCR extraction + fallback (SRS 21.4)
     pipeline.py                Orchestration + confidence scoring/routing (SRS 15.4)
   core/

@@ -76,6 +76,12 @@ class Settings(BaseSettings):
     # Remaining-gaps item 2: bounded retry for TRANSIENT Gemini errors (429/503/
     # deadline), all inside gemini_timeout_seconds. 0 disables retry.
     gemini_max_retries: int = 1
+    # JanNet Sahayak v1 (POST /api/v1/ai/assistant/compose): at most this many
+    # Gemini calls per minute from the assistant (free tier); above it the
+    # backend's rule-based fallback answers. 0 turns assistant LLM calls off.
+    assistant_llm_max_per_minute: int = 8
+    # Empty = the same model as the photo check (gemini_model_name).
+    assistant_model_name: str = ""
 
     # --- OCR (SRS 21.4) ---
     ocr_enabled: bool = True
