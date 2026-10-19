@@ -64,11 +64,11 @@ class _ComplaintHomeScreenState extends State<ComplaintHomeScreen> {
   void _openSettings() =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalSettingsScreen()));
 
-  /// JanNet Sahayak v1: the chat can send the citizen to the Submit tab (with a
-  /// drafted description, see ComplaintPrefill) or to My Complaints.
+  /// JanNet Sahayak v1: a small chat window in the bottom-right corner. The chat
+  /// can send the citizen to the Submit tab (with a drafted description, see
+  /// ComplaintPrefill) or to My Complaints.
   Future<void> _openAssistant() async {
-    final exit = await Navigator.of(context)
-        .push<AssistantExit>(MaterialPageRoute(builder: (_) => const AssistantScreen()));
+    final exit = await AssistantScreen.open(context);
     if (!mounted || exit == null) return;
     setState(() => _tab = exit == AssistantExit.report ? 1 : 2);
   }

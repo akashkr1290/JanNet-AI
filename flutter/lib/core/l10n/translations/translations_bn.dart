@@ -1019,4 +1019,5 @@ const Map<String, String> kTranslationsBn = {
   'Ask JanNet Sahayak': 'জননেট সহায়ককে জিজ্ঞাসা করুন',
   'Ask Sahayak': 'সহায়ককে জিজ্ঞাসা',
   'The assistant filled in the description. Check it, then add the photo and the place.': 'সহায়ক বিবরণ লিখে দিয়েছে। সেটি দেখে নিন, তারপর ছবি ও জায়গা যোগ করুন।',
+  'Close': 'বন্ধ করুন',
 };

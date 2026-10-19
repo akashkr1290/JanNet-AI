@@ -128,6 +128,45 @@ void main() {
     expect(find.byType(StatusBadge), findsOneWidget);
   });
 
+  testWidgets('opens as a small window in the bottom-right corner and closes', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    Future<AssistantReply> sender(String text, {String? sessionId, required String language}) async => _statusReply();
+
+    AssistantExit? exit = AssistantExit.report;
+    var closed = false;
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: ElevatedButton(
+              onPressed: () async {
+                exit = await AssistantScreen.open(context, sender: sender);
+                closed = true;
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final panel = tester.getRect(find.byType(AssistantScreen));
+    expect(panel.width, 400);
+    expect(panel.right, greaterThan(1300)); // right edge of the screen
+    expect(panel.bottom, greaterThan(800)); // bottom of the screen
+    expect(find.text('open'), findsOneWidget); // the page stays visible behind it
+
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(closed, isTrue);
+    expect(exit, isNull);
+    expect(find.byType(AssistantScreen), findsNothing);
+  });
+
   test('ComplaintPrefill hands the draft over once', () {
     ComplaintPrefill.description.value = 'Garbage near the market.';
     expect(ComplaintPrefill.take(), 'Garbage near the market.');

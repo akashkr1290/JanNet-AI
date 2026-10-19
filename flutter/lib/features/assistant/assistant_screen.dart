@@ -27,7 +27,53 @@ class AssistantScreen extends StatefulWidget {
   /// Replaces the network call in tests.
   final AssistantSender? sender;
 
-  const AssistantScreen({super.key, this.sender});
+  /// True inside the small chat window ([open]): a compact header with a
+  /// close button instead of a full-page app bar.
+  final bool embedded;
+
+  const AssistantScreen({super.key, this.sender, this.embedded = false});
+
+  /// Opens the assistant as a small chat window in the bottom-right corner
+  /// (on a phone: a window over the lower part of the screen). Tapping
+  /// outside it, or its close button, closes it.
+  static Future<AssistantExit?> open(BuildContext context, {AssistantSender? sender}) {
+    return showGeneralDialog<AssistantExit>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: trs('Close'),
+      barrierColor: Colors.black12,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, _, __) {
+        final size = MediaQuery.sizeOf(context);
+        final phone = size.width < 600;
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: EdgeInsets.all(phone ? JanSpace.xs : JanSpace.lg),
+              child: SizedBox(
+                width: phone ? size.width : 400,
+                height: phone ? size.height * 0.82 : (size.height - 2 * JanSpace.lg).clamp(320.0, 620.0),
+                child: Material(
+                  elevation: 12,
+                  borderRadius: JanRadius.xlAll,
+                  clipBehavior: Clip.antiAlias,
+                  child: AssistantScreen(sender: sender, embedded: true),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, _, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(scale: Tween(begin: 0.92, end: 1.0).animate(curved), alignment: Alignment.bottomRight, child: child),
+        );
+      },
+    );
+  }
 
   /// The starter questions. The same wording (and its translations) is what the
   /// backend recognises exactly (AssistantTexts CHIP_* in the backend).
@@ -149,7 +195,27 @@ class _AssistantScreenState extends State<AssistantScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('JanNet Sahayak')),
+      appBar: widget.embedded
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              toolbarHeight: 52,
+              backgroundColor: JanColors.navy,
+              foregroundColor: JanColors.white,
+              titleSpacing: JanSpace.md,
+              title: const Row(children: [
+                Icon(Icons.support_agent_rounded, size: 22),
+                SizedBox(width: JanSpace.xs),
+                Text('JanNet Sahayak', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              ]),
+              actions: [
+                IconButton(
+                  tooltip: trs('Close'),
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            )
+          : AppBar(title: const Text('JanNet Sahayak')),
       body: SafeArea(
         child: Column(children: [
           Expanded(
