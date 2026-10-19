@@ -3,22 +3,51 @@ import 'package:flutter/material.dart' hide Text;
 import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_states.dart';
 import '../../complaints/models/complaint.dart';
+import '../../complaints/screens/complaint_detail_screen.dart';
 import '../../complaints/screens/complaint_list_screen.dart';
 import '../../complaints/screens/officer_complaint_detail_screen.dart';
 import '../dashboard_api.dart';
 import '../../../core/l10n/tr_text.dart';
 
-/// Dashboard drill-down: the complaints behind one KPI tile (Total, Open,
-/// Resolved, Escalated), newest first, from GET /api/v1/dashboard/complaints.
-/// Opened from government_dashboard_screen.dart; a row opens the complaint.
-/// The list is live, the tile counts are refreshed by the server every few
-/// minutes, so right after a change the two can differ briefly.
+/// Loads one page of a tile's complaints.
+typedef KpiPageLoader = Future<KpiComplaintPage> Function(int page);
+
+/// Dashboard drill-down: the complaints behind one tile, a row opens the
+/// complaint.
+///  * Government / department dashboards (Total, Open, Resolved, Escalated):
+///    GET /api/v1/dashboard/complaints. Those tile counts are refreshed by the
+///    server every few minutes, so right after a change the two can differ briefly.
+///  * The citizen's and the officer's own dashboards: [KpiComplaintsScreen.mine]
+///    (GET /api/v1/my/complaints), counted live with the same rules.
 class KpiComplaintsScreen extends StatefulWidget {
-  final String kpi; // TOTAL | OPEN | RESOLVED | ESCALATED
+  final String kpi; // TOTAL | OPEN | RESOLVED | ESCALATED (or a personal tile)
   final String title;
   final int? departmentId;
 
-  const KpiComplaintsScreen({super.key, required this.kpi, required this.title, this.departmentId});
+  /// Replaces the government-dashboard call (personal tiles, tests).
+  final KpiPageLoader? loader;
+
+  /// A citizen opens their own complaint screen; staff open the officer view.
+  final bool citizenView;
+
+  const KpiComplaintsScreen({
+    super.key,
+    required this.kpi,
+    required this.title,
+    this.departmentId,
+    this.loader,
+    this.citizenView = false,
+  });
+
+  /// A tile of the caller's own dashboard (citizen or officer / department head).
+  factory KpiComplaintsScreen.mine({Key? key, required String tile, required String title, bool citizenView = false}) =>
+      KpiComplaintsScreen(
+        key: key,
+        kpi: tile,
+        title: title,
+        citizenView: citizenView,
+        loader: (page) => DashboardApi.instance.myTileComplaints(tile, page: page),
+      );
 
   @override
   State<KpiComplaintsScreen> createState() => _KpiComplaintsScreenState();
@@ -45,7 +74,10 @@ class _KpiComplaintsScreenState extends State<KpiComplaintsScreen> {
       _error = null;
     });
     try {
-      final page = await DashboardApi.instance.kpiComplaints(widget.kpi, departmentId: widget.departmentId, page: _page);
+      final loader = widget.loader;
+      final page = loader != null
+          ? await loader(_page)
+          : await DashboardApi.instance.kpiComplaints(widget.kpi, departmentId: widget.departmentId, page: _page);
       if (!mounted) return;
       setState(() {
         _items.addAll(page.items);
@@ -102,7 +134,11 @@ class _KpiComplaintsScreenState extends State<KpiComplaintsScreen> {
           return ComplaintSummaryCard(
             complaint: c,
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => OfficerComplaintDetailScreen(complaintId: c.complaintId)),
+              MaterialPageRoute(
+                builder: (_) => widget.citizenView
+                    ? ComplaintDetailScreen(complaintId: c.complaintId)
+                    : OfficerComplaintDetailScreen(complaintId: c.complaintId),
+              ),
             ),
           );
         },

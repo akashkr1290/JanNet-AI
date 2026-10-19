@@ -1,6 +1,7 @@
 package com.jannetai.backend.service.dashboard;
 
 import com.jannetai.backend.dto.complaint.AiClassificationResponse;
+import com.jannetai.backend.dto.complaint.ComplaintSummaryResponse;
 import com.jannetai.backend.dto.dashboard.CitizenDashboardResponse;
 import com.jannetai.backend.dto.dashboard.OfficerDashboardResponse;
 import com.jannetai.backend.entity.Complaint;
@@ -13,8 +14,15 @@ import com.jannetai.backend.repository.PredictionRepository;
 import com.jannetai.backend.repository.StatusHistoryRepository;
 import com.jannetai.backend.service.department.SlaPolicy;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -22,7 +30,9 @@ import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Gap-backlog Patches 08 and 09 (Sep 2026 strict recheck) - the two P0
@@ -104,19 +114,11 @@ public class PersonalDashboardService {
         long noSla = 0;
         List<Complaint> open = complaintRepository.findByAssignedOfficer_UserIdAndStatusIn(officerId, OFFICER_OPEN);
         for (Complaint c : open) {
-            LocalDateTime due = slaPolicy.dueAt(c);
-            if (due == null) {
-                noSla++;
-            } else if (now.isAfter(due)) {
-                overdue++;
-            } else {
-                long window = Duration.between(c.getCreatedAt(), due).toMinutes();
-                long elapsed = Duration.between(c.getCreatedAt(), now).toMinutes();
-                if (window > 0 && elapsed >= window * AT_RISK_FRACTION) {
-                    atRisk++;
-                } else {
-                    onTrack++;
-                }
+            switch (slaBucket(c, now)) {
+                case NO_SLA -> noSla++;
+                case OVERDUE -> overdue++;
+                case AT_RISK -> atRisk++;
+                case ON_TRACK -> onTrack++;
             }
         }
 
@@ -166,6 +168,80 @@ public class PersonalDashboardService {
                 counts.getOrDefault(ComplaintStatus.CLOSED, 0L),
                 overdue, atRisk, onTrack, noSla,
                 resolutions.size(), avgHours, compliance, tasks);
+    }
+
+    // --------------------- dashboard tiles -> their complaints ---------------------
+
+    /** The SLA groups of the officer dashboard (one rule for the counts and the lists). */
+    enum SlaBucket { OVERDUE, AT_RISK, ON_TRACK, NO_SLA }
+
+    private SlaBucket slaBucket(Complaint c, LocalDateTime now) {
+        LocalDateTime due = slaPolicy.dueAt(c);
+        if (due == null) {
+            return SlaBucket.NO_SLA;
+        }
+        if (now.isAfter(due)) {
+            return SlaBucket.OVERDUE;
+        }
+        long window = Duration.between(c.getCreatedAt(), due).toMinutes();
+        long elapsed = Duration.between(c.getCreatedAt(), now).toMinutes();
+        return window > 0 && elapsed >= window * AT_RISK_FRACTION ? SlaBucket.AT_RISK : SlaBucket.ON_TRACK;
+    }
+
+    /** Citizen dashboard tiles (same groups as {@link #citizenDashboard}). */
+    public static final Set<String> CITIZEN_TILES = Set.of(
+            "TOTAL", "PENDING", "IN_PROGRESS", "RESOLVED", "CLOSED", "REJECTED", "DUPLICATE");
+    /** Officer dashboard tiles (same groups as {@link #officerDashboard}). */
+    public static final Set<String> OFFICER_TILES = Set.of(
+            "ASSIGNED", "IN_PROGRESS", "RESOLVED", "CLOSED", "OVERDUE", "AT_RISK", "ON_TRACK", "NO_SLA");
+
+    /**
+     * GET /api/v1/my/complaints?tile=... - the complaints behind one tile of the
+     * caller's OWN dashboard (citizen: their complaints; officer / department
+     * head: complaints assigned to them), with exactly the conditions the tile
+     * counts with. No id parameter: it can only ever show the caller's own work.
+     * Status tiles are newest first; SLA tiles are most urgent first.
+     */
+    @Transactional(readOnly = true)
+    public Page<ComplaintSummaryResponse> tileComplaints(User user, String tile, int page, int pageSize) {
+        String t = tile == null ? "" : tile.trim().toUpperCase(Locale.ROOT);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(pageSize, 1), 100);
+        Pageable newest = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Long userId = user.getUserId();
+
+        if (user.getRole() == com.jannetai.backend.entity.enums.Role.CITIZEN) {
+            if (!CITIZEN_TILES.contains(t)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown dashboard tile: " + tile);
+            }
+            Page<Complaint> result = "TOTAL".equals(t)
+                    ? complaintRepository.findByCitizen_UserId(userId, newest)
+                    : complaintRepository.findByCitizen_UserIdAndStatusIn(userId,
+                            "PENDING".equals(t) ? PENDING : EnumSet.of(ComplaintStatus.valueOf(t)), newest);
+            return result.map(ComplaintSummaryResponse::from);
+        }
+
+        if (!OFFICER_TILES.contains(t)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown dashboard tile: " + tile);
+        }
+        if (Set.of("ASSIGNED", "IN_PROGRESS", "RESOLVED", "CLOSED").contains(t)) {
+            return complaintRepository.findByAssignedOfficer_UserIdAndStatusIn(userId,
+                    EnumSet.of(ComplaintStatus.valueOf(t)), newest).map(ComplaintSummaryResponse::from);
+        }
+        // SLA tiles: classified in memory with the same rule as the counts, most urgent first.
+        SlaBucket bucket = SlaBucket.valueOf(t);
+        LocalDateTime now = LocalDateTime.now();
+        List<Complaint> matching = complaintRepository.findByAssignedOfficer_UserIdAndStatusIn(userId, OFFICER_OPEN)
+                .stream()
+                .filter(c -> slaBucket(c, now) == bucket)
+                .sorted(Comparator.comparing((Complaint c) -> slaPolicy.dueAt(c),
+                                Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(Complaint::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+        int from = Math.min(safePage * safeSize, matching.size());
+        int to = Math.min(from + safeSize, matching.size());
+        return new PageImpl<>(matching.subList(from, to).stream().map(ComplaintSummaryResponse::from).toList(),
+                PageRequest.of(safePage, safeSize), matching.size());
     }
 
     private static Map<ComplaintStatus, Long> toCounts(List<Object[]> rows) {

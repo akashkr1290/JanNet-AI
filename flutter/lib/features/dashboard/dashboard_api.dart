@@ -53,6 +53,24 @@ class DashboardApi {
     );
   }
 
+  /// GET /api/v1/my/complaints - the complaints behind one tile of the caller's
+  /// OWN dashboard (citizen: TOTAL, PENDING, IN_PROGRESS, RESOLVED, CLOSED,
+  /// REJECTED; officer / department head: ASSIGNED, IN_PROGRESS, RESOLVED,
+  /// CLOSED, OVERDUE, AT_RISK, ON_TRACK, NO_SLA). Self-scoped on the server.
+  Future<KpiComplaintPage> myTileComplaints(String tile, {int page = 0, int pageSize = 30}) async {
+    final json = await _client.get('/my/complaints', query: {
+      'tile': tile,
+      'page': page,
+      'pageSize': pageSize,
+    }) as Map<String, dynamic>;
+    final content = (json['content'] as List?) ?? const [];
+    return KpiComplaintPage(
+      items: content.map((e) => ComplaintSummary.fromJson(e as Map<String, dynamic>)).toList(),
+      total: (json['totalElements'] as num?)?.toInt() ?? content.length,
+      last: json['last'] as bool? ?? true,
+    );
+  }
+
   /// GET /api/v1/dashboard/department-comparison - ADMIN/SUPER_ADMIN
   /// only (SRS 15.10/24.3/24.4 "department comparison chart").
   Future<List<DepartmentComparison>> departmentComparison() async {

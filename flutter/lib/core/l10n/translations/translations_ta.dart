@@ -1020,4 +1020,9 @@ const Map<String, String> kTranslationsTa = {
   'Ask Sahayak': 'சகாயக்கிடம் கேள்',
   'The assistant filled in the description. Check it, then add the photo and the place.': 'உதவியாளர் விளக்கத்தை நிரப்பியுள்ளது. அதைச் சரிபார்த்து, பிறகு புகைப்படத்தையும் இடத்தையும் சேர்க்கவும்.',
   'Close': 'மூடு',
+  'Ask about your complaints': 'உங்கள் புகார்கள் பற்றிக் கேளுங்கள்',
+  'by ward': 'வார்டு வாரியாக',
+  'Of all complaints accepted or joined to an earlier report so far, the share the AI handled on its own. The rest were checked by the Verification Team.': 'இதுவரை ஏற்கப்பட்ட அல்லது முந்தைய புகாருடன் இணைக்கப்பட்ட அனைத்துப் புகார்களில் AI தானாகக் கையாண்ட பங்கு. மீதமுள்ளவற்றைச் சரிபார்ப்புக் குழு சரிபார்த்தது.',
+  'Share of all complaints that were joined to an earlier report of the same problem nearby.': 'அருகில் அதே பிரச்சினைக்கான முந்தைய புகாருடன் இணைக்கப்பட்ட புகார்களின் பங்கு.',
+  'Share of notifications in the last 30 days that could not be delivered. Above 5% means e-mail delivery needs checking.': 'கடந்த 30 நாட்களில் சேர்க்க முடியாத அறிவிப்புகளின் பங்கு. 5%-க்கு மேல் இருந்தால் மின்னஞ்சல் அனுப்புதலைச் சரிபார்க்கவும்.',
 };

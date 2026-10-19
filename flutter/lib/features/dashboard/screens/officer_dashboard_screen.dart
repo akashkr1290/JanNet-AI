@@ -9,6 +9,7 @@ import '../../complaints/models/complaint_status.dart';
 import '../../complaints/screens/officer_complaint_detail_screen.dart';
 import '../../complaints/widgets/status_badge.dart';
 import '../personal_dashboard_api.dart';
+import 'kpi_complaints_screen.dart';
 import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 09 (Sep 2026 strict recheck): officer dashboard - own
@@ -42,6 +43,12 @@ class _OfficerDashboardScreenState extends State<OfficerDashboardScreen> {
     await _future;
   }
 
+  /// A tap on a tile opens the complaints it counts (GET /my/complaints).
+  Future<void> _openTile(String tile, String title) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => KpiComplaintsScreen.mine(tile: tile, title: title)));
+    if (mounted) _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final fmt = DateFormat('dd MMM, hh:mm a');
@@ -68,18 +75,26 @@ class _OfficerDashboardScreenState extends State<OfficerDashboardScreen> {
               children: [
                 const JanSectionHeader(title: 'My Workload'),
                 JanStatGrid(children: [
-                  JanStatCard(label: 'Assigned', value: '${d.assigned}', icon: Icons.assignment_ind_outlined, tone: JanTone.navy),
-                  JanStatCard(label: 'In Progress', value: '${d.inProgress}', icon: Icons.construction_rounded, tone: JanTone.blue),
-                  JanStatCard(label: 'Resolved', value: '${d.resolved}', icon: Icons.task_alt_rounded, tone: JanTone.teal),
-                  JanStatCard(label: 'Closed', value: '${d.closed}', icon: Icons.lock_outline_rounded, tone: JanTone.slate),
+                  JanStatCard(label: 'Assigned', value: '${d.assigned}', icon: Icons.assignment_ind_outlined, tone: JanTone.navy,
+                      onTap: () => _openTile('ASSIGNED', 'Assigned')),
+                  JanStatCard(label: 'In Progress', value: '${d.inProgress}', icon: Icons.construction_rounded, tone: JanTone.blue,
+                      onTap: () => _openTile('IN_PROGRESS', 'In Progress')),
+                  JanStatCard(label: 'Resolved', value: '${d.resolved}', icon: Icons.task_alt_rounded, tone: JanTone.teal,
+                      onTap: () => _openTile('RESOLVED', 'Resolved')),
+                  JanStatCard(label: 'Closed', value: '${d.closed}', icon: Icons.lock_outline_rounded, tone: JanTone.slate,
+                      onTap: () => _openTile('CLOSED', 'Closed')),
                 ]),
                 const JanSectionHeader(title: 'SLA Status (open work)'),
                 JanStatGrid(children: [
-                  JanStatCard(label: 'Overdue', value: '${d.overdue}', icon: Icons.warning_amber_rounded, tone: JanTone.light),
-                  JanStatCard(label: 'At Risk (80%+)', value: '${d.atRisk}', icon: Icons.schedule_rounded, tone: JanTone.amber),
-                  JanStatCard(label: 'On Track', value: '${d.onTrack}', icon: Icons.check_circle_outline_rounded, tone: JanTone.teal),
+                  JanStatCard(label: 'Overdue', value: '${d.overdue}', icon: Icons.warning_amber_rounded, tone: JanTone.light,
+                      onTap: () => _openTile('OVERDUE', 'Overdue')),
+                  JanStatCard(label: 'At Risk (80%+)', value: '${d.atRisk}', icon: Icons.schedule_rounded, tone: JanTone.amber,
+                      onTap: () => _openTile('AT_RISK', 'At Risk (80%+)')),
+                  JanStatCard(label: 'On Track', value: '${d.onTrack}', icon: Icons.check_circle_outline_rounded, tone: JanTone.teal,
+                      onTap: () => _openTile('ON_TRACK', 'On Track')),
                   if (d.noSla > 0)
-                    JanStatCard(label: 'No SLA yet', value: '${d.noSla}', icon: Icons.help_outline_rounded, tone: JanTone.slate),
+                    JanStatCard(label: 'No SLA yet', value: '${d.noSla}', icon: Icons.help_outline_rounded, tone: JanTone.slate,
+                      onTap: () => _openTile('NO_SLA', 'No SLA yet')),
                 ]),
                 const JanSectionHeader(title: 'Personal Performance (30 days)'),
                 JanCard(

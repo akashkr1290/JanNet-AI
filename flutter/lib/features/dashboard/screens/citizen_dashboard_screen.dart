@@ -13,6 +13,7 @@ import '../../complaints/widgets/category_visuals.dart';
 import '../../complaints/widgets/status_badge.dart';
 import '../../users/user_api.dart';
 import '../personal_dashboard_api.dart';
+import 'kpi_complaints_screen.dart';
 import '../../../core/l10n/tr_text.dart';
 
 /// Gap-backlog Patch 08 citizen dashboard - counts by status plus the five
@@ -132,6 +133,14 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
     );
   }
 
+  /// A tap on a statistic opens the complaints it counts (GET /my/complaints).
+  Future<void> _openTile(String tile, String title) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => KpiComplaintsScreen.mine(tile: tile, title: title, citizenView: true),
+    ));
+    if (mounted) _refresh();
+  }
+
   Widget _statistics(CitizenDashboard d) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -139,13 +148,19 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
         const JanSectionHeader(title: 'Complaint Statistics'),
         JanStatGrid(
           children: [
-            JanStatCard(label: AppStrings.of('dash_total'), value: '${d.total}', icon: Icons.apartment_rounded, tone: JanTone.navy),
-            JanStatCard(label: AppStrings.of('dash_pending'), value: '${d.pending}', icon: Icons.schedule_rounded, tone: JanTone.amber),
-            JanStatCard(label: AppStrings.of('status_in_progress'), value: '${d.inProgress}', icon: Icons.speed_rounded, tone: JanTone.blue),
-            JanStatCard(label: AppStrings.of('status_resolved'), value: '${d.resolved}', icon: Icons.check_circle_outline_rounded, tone: JanTone.teal),
-            JanStatCard(label: AppStrings.of('status_closed'), value: '${d.closed}', icon: Icons.lock_outline_rounded, tone: JanTone.slate),
+            JanStatCard(label: AppStrings.of('dash_total'), value: '${d.total}', icon: Icons.apartment_rounded, tone: JanTone.navy,
+                onTap: () => _openTile('TOTAL', AppStrings.of('dash_total'))),
+            JanStatCard(label: AppStrings.of('dash_pending'), value: '${d.pending}', icon: Icons.schedule_rounded, tone: JanTone.amber,
+                onTap: () => _openTile('PENDING', AppStrings.of('dash_pending'))),
+            JanStatCard(label: AppStrings.of('status_in_progress'), value: '${d.inProgress}', icon: Icons.speed_rounded, tone: JanTone.blue,
+                onTap: () => _openTile('IN_PROGRESS', AppStrings.of('status_in_progress'))),
+            JanStatCard(label: AppStrings.of('status_resolved'), value: '${d.resolved}', icon: Icons.check_circle_outline_rounded, tone: JanTone.teal,
+                onTap: () => _openTile('RESOLVED', AppStrings.of('status_resolved'))),
+            JanStatCard(label: AppStrings.of('status_closed'), value: '${d.closed}', icon: Icons.lock_outline_rounded, tone: JanTone.slate,
+                onTap: () => _openTile('CLOSED', AppStrings.of('status_closed'))),
             if (d.rejected > 0)
-              JanStatCard(label: AppStrings.of('status_rejected'), value: '${d.rejected}', icon: Icons.block_rounded, tone: JanTone.light),
+              JanStatCard(label: AppStrings.of('status_rejected'), value: '${d.rejected}', icon: Icons.block_rounded, tone: JanTone.light,
+                  onTap: () => _openTile('REJECTED', AppStrings.of('status_rejected'))),
           ],
         ),
       ],

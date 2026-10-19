@@ -1,5 +1,6 @@
 package com.jannetai.backend.controller;
 
+import com.jannetai.backend.dto.complaint.ComplaintSummaryResponse;
 import com.jannetai.backend.dto.dashboard.CitizenDashboardResponse;
 import com.jannetai.backend.dto.dashboard.OfficerDashboardResponse;
 import com.jannetai.backend.security.UserPrincipal;
@@ -9,7 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -38,5 +41,18 @@ public class PersonalDashboardController {
     @PreAuthorize("hasAnyRole('GOVERNMENT_OFFICER', 'DEPARTMENT_HEAD')")
     public OfficerDashboardResponse officerDashboard(@AuthenticationPrincipal UserPrincipal principal) {
         return personalDashboardService.officerDashboard(principal.getUser());
+    }
+
+    /**
+     * The complaints behind one tile of the caller's own dashboard (citizen or
+     * officer / department head). Self-scoped like the dashboards above.
+     */
+    @GetMapping("/my/complaints")
+    @PreAuthorize("hasAnyRole('CITIZEN', 'GOVERNMENT_OFFICER', 'DEPARTMENT_HEAD')")
+    public Page<ComplaintSummaryResponse> myTileComplaints(@AuthenticationPrincipal UserPrincipal principal,
+                                                           @RequestParam String tile,
+                                                           @RequestParam(defaultValue = "0") int page,
+                                                           @RequestParam(defaultValue = "20") int pageSize) {
+        return personalDashboardService.tileComplaints(principal.getUser(), tile, page, pageSize);
     }
 }

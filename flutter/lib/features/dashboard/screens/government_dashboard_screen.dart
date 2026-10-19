@@ -7,6 +7,8 @@ import '../../../core/theme/jan_tokens.dart';
 import '../../../core/widgets/jan_stat_card.dart';
 import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
+import '../../admin/screens/admin_audit_log_screen.dart';
+import '../../admin/screens/admin_user_management_screen.dart';
 import '../dashboard_api.dart';
 import '../models/dashboard_models.dart';
 import 'kpi_complaints_screen.dart';
@@ -260,6 +262,9 @@ class _GovernmentDashboardScreenState extends State<GovernmentDashboardScreen> {
     );
   }
 
+  void _openPage(String title, Widget body) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => JanPage(title: title, body: body)));
+
   Widget _kpiTile(String label, String value, IconData icon, JanTone tone, {String? caption, VoidCallback? onTap}) {
     return JanStatCard(label: label, value: value, icon: icon, tone: tone, caption: caption, onTap: onTap);
   }
@@ -454,24 +459,42 @@ class _GovernmentDashboardScreenState extends State<GovernmentDashboardScreen> {
         JanStatGrid(
           maxColumns: 3,
           children: [
-            _kpiTile('Active Users', s.activeUserCount.toString(), Icons.person_outline_rounded, JanTone.blue),
-            _kpiTile('Total Users', s.totalUserCount.toString(), Icons.groups_outlined, JanTone.navy),
+            _kpiTile('Active Users', s.activeUserCount.toString(), Icons.person_outline_rounded, JanTone.blue,
+                onTap: () => _openPage('Users', const AdminUserManagementScreen())),
+            _kpiTile('Total Users', s.totalUserCount.toString(), Icons.groups_outlined, JanTone.navy,
+                onTap: () => _openPage('Users', const AdminUserManagementScreen())),
             _kpiTile(
               'AI Auto Rate',
               s.aiAutoProcessingRatePercent != null ? '${s.aiAutoProcessingRatePercent!.toStringAsFixed(1)}%' : 'N/A',
               Icons.smart_toy_outlined,
               JanTone.teal,
+              onTap: () => showJanStatInfo(context,
+                  title: 'AI Auto Rate',
+                  icon: Icons.smart_toy_outlined,
+                  value: s.aiAutoProcessingRatePercent != null ? '${s.aiAutoProcessingRatePercent!.toStringAsFixed(1)}%' : 'N/A',
+                  explanation: 'Of all complaints accepted or joined to an earlier report so far, the share the AI handled on its own. The rest were checked by the Verification Team.'),
             ),
             _kpiTile('Duplicate Rate', '${s.duplicateMergeRatePercent.toStringAsFixed(1)}%', Icons.copy_all_rounded,
-                JanTone.slate),
+                JanTone.slate,
+                onTap: () => showJanStatInfo(context,
+                    title: 'Duplicate Rate',
+                    icon: Icons.copy_all_rounded,
+                    value: '${s.duplicateMergeRatePercent.toStringAsFixed(1)}%',
+                    explanation: 'Share of all complaints that were joined to an earlier report of the same problem nearby.')),
             _kpiTile('Config Changes (30d)', s.configurationChangeCountLast30Days.toString(), Icons.tune_rounded,
-                JanTone.amber),
+                JanTone.amber,
+                onTap: () => _openPage('Audit Log', const AdminAuditLogScreen())),
             _kpiTile(
               'Notif. Failure Rate (30d)',
               '${s.notificationFailureRatePercent.toStringAsFixed(1)}%',
               failureHigh ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
               JanTone.light,
               caption: failureHigh ? 'Above 5% - check delivery' : 'Within normal range',
+              onTap: () => showJanStatInfo(context,
+                  title: 'Notif. Failure Rate (30d)',
+                  icon: Icons.mark_email_unread_outlined,
+                  value: '${s.notificationFailureRatePercent.toStringAsFixed(1)}%',
+                  explanation: 'Share of notifications in the last 30 days that could not be delivered. Above 5% means e-mail delivery needs checking.'),
             ),
           ],
         ),

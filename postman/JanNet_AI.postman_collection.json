@@ -7233,6 +7233,25 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "My dashboard tile -> its complaints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/my/complaints?tile=PENDING&page=0&pageSize=20",
+            "description": "The complaints behind one tile of the caller's own dashboard, counted with the same rules as the tile. Citizen: TOTAL, PENDING, IN_PROGRESS, RESOLVED, CLOSED, REJECTED, DUPLICATE. Officer / Department Head: ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED, OVERDUE, AT_RISK, ON_TRACK, NO_SLA (SLA tiles most urgent first). No id parameter - self-scoped.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
         }
       ]
     },

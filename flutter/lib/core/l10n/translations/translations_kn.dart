@@ -1020,4 +1020,9 @@ const Map<String, String> kTranslationsKn = {
   'Ask Sahayak': 'ಸಹಾಯಕನನ್ನು ಕೇಳಿ',
   'The assistant filled in the description. Check it, then add the photo and the place.': 'ಸಹಾಯಕ ವಿವರಣೆಯನ್ನು ತುಂಬಿದೆ. ಅದನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಫೋಟೋ ಮತ್ತು ಸ್ಥಳವನ್ನು ಸೇರಿಸಿ.',
   'Close': 'ಮುಚ್ಚಿ',
+  'Ask about your complaints': 'ನಿಮ್ಮ ದೂರುಗಳ ಬಗ್ಗೆ ಕೇಳಿ',
+  'by ward': 'ವಾರ್ಡ್‌ವಾರು',
+  'Of all complaints accepted or joined to an earlier report so far, the share the AI handled on its own. The rest were checked by the Verification Team.': 'ಇಲ್ಲಿಯವರೆಗೆ ಸ್ವೀಕರಿಸಿದ ಅಥವಾ ಹಿಂದಿನ ವರದಿಗೆ ಸೇರಿಸಿದ ಎಲ್ಲಾ ದೂರುಗಳಲ್ಲಿ AI ತಾನಾಗಿ ನಿರ್ವಹಿಸಿದ ಪಾಲು. ಉಳಿದವನ್ನು ಪರಿಶೀಲನಾ ತಂಡ ಪರಿಶೀಲಿಸಿದೆ.',
+  'Share of all complaints that were joined to an earlier report of the same problem nearby.': 'ಹತ್ತಿರದಲ್ಲಿ ಅದೇ ಸಮಸ್ಯೆಯ ಹಿಂದಿನ ವರದಿಗೆ ಸೇರಿಸಿದ ದೂರುಗಳ ಪಾಲು.',
+  'Share of notifications in the last 30 days that could not be delivered. Above 5% means e-mail delivery needs checking.': 'ಕಳೆದ 30 ದಿನಗಳಲ್ಲಿ ತಲುಪಿಸಲಾಗದ ಅಧಿಸೂಚನೆಗಳ ಪಾಲು. 5% ಕ್ಕಿಂತ ಹೆಚ್ಚಿದ್ದರೆ ಇ-ಮೇಲ್ ವಿತರಣೆಯನ್ನು ಪರಿಶೀಲಿಸಿ.',
 };

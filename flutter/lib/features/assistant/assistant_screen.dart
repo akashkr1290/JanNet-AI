@@ -6,6 +6,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/l10n/tr_text.dart';
 import '../../core/theme/jan_tokens.dart';
 import '../../core/widgets/error_text.dart';
+import '../../core/widgets/jan_liquid.dart';
 import '../complaints/complaint_prefill.dart';
 import '../complaints/screens/complaint_detail_screen.dart';
 import '../complaints/widgets/category_visuals.dart';
@@ -33,6 +34,9 @@ class AssistantScreen extends StatefulWidget {
 
   const AssistantScreen({super.key, this.sender, this.embedded = false});
 
+  /// The drifting "liquid" background. Tests switch it off so frames settle.
+  static bool liquidMotion = true;
+
   /// Opens the assistant as a small chat window in the bottom-right corner
   /// (on a phone: a window over the lower part of the screen). Tapping
   /// outside it, or its close button, closes it.
@@ -41,7 +45,7 @@ class AssistantScreen extends StatefulWidget {
       context: context,
       barrierDismissible: true,
       barrierLabel: trs('Close'),
-      barrierColor: Colors.black12,
+      barrierColor: Colors.black.withValues(alpha: 0.18),
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, _, __) {
         final size = MediaQuery.sizeOf(context);
@@ -54,11 +58,21 @@ class AssistantScreen extends StatefulWidget {
               child: SizedBox(
                 width: phone ? size.width : 400,
                 height: phone ? size.height * 0.82 : (size.height - 2 * JanSpace.lg).clamp(320.0, 620.0),
-                child: Material(
-                  elevation: 12,
-                  borderRadius: JanRadius.xlAll,
-                  clipBehavior: Clip.antiAlias,
-                  child: AssistantScreen(sender: sender, embedded: true),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.all(Radius.circular(28)),
+                    boxShadow: [
+                      BoxShadow(color: JanColors.navy.withValues(alpha: 0.28), blurRadius: 40, offset: const Offset(0, 18)),
+                    ],
+                  ),
+                  child: JanGlass(
+                    borderRadius: const BorderRadius.all(Radius.circular(28)),
+                    opacity: 0.80,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: AssistantScreen(sender: sender, embedded: true),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -195,17 +209,43 @@ class _AssistantScreenState extends State<AssistantScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: widget.embedded ? Colors.transparent : JanColors.background,
       appBar: widget.embedded
           ? AppBar(
               automaticallyImplyLeading: false,
-              toolbarHeight: 52,
-              backgroundColor: JanColors.navy,
+              toolbarHeight: 60,
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
               foregroundColor: JanColors.white,
               titleSpacing: JanSpace.md,
-              title: const Row(children: [
-                Icon(Icons.support_agent_rounded, size: 22),
-                SizedBox(width: JanSpace.xs),
-                Text('JanNet Sahayak', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              flexibleSpace: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [JanColors.navy, JanColors.primary, JanColors.teal],
+                  ),
+                ),
+              ),
+              title: Row(children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: JanColors.white.withValues(alpha: 0.18),
+                    border: Border.all(color: JanColors.white.withValues(alpha: 0.55)),
+                    boxShadow: [BoxShadow(color: JanColors.electricGlow.withValues(alpha: 0.6), blurRadius: 14)],
+                  ),
+                  child: const Icon(Icons.support_agent_rounded, size: 20),
+                ),
+                const SizedBox(width: JanSpace.sm),
+                const Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                    Text('JanNet Sahayak', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800)),
+                    Text('Ask about your complaints', style: TextStyle(fontSize: 12, color: Color(0xE6FFFFFF))),
+                  ]),
+                ),
               ]),
               actions: [
                 IconButton(
@@ -216,7 +256,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
               ],
             )
           : AppBar(title: const Text('JanNet Sahayak')),
-      body: SafeArea(
+      body: JanLiquidBackdrop(
+        animate: AssistantScreen.liquidMotion,
+        child: SafeArea(
         child: Column(children: [
           Expanded(
             child: ListView(
@@ -229,10 +271,8 @@ class _AssistantScreenState extends State<AssistantScreen> {
                   Semantics(
                     liveRegion: true,
                     label: trs('Sahayak is typing'),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: JanSpace.sm),
-                      child: LinearProgressIndicator(),
-                    ),
+                    excludeSemantics: true,
+                    child: _bubble(alignEnd: false, child: const JanTypingDots()),
                   ),
                 if (_error != null)
                   Padding(
@@ -252,6 +292,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
           ),
           _composer(),
         ]),
+        ),
       ),
     );
   }
@@ -268,8 +309,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
         Wrap(spacing: JanSpace.xs, runSpacing: JanSpace.xs, children: [
           for (final q in AssistantScreen.starterQuestions)
             ActionChip(
-              avatar: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+              avatar: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: JanColors.primary),
               label: Text(q),
+              backgroundColor: JanColors.white.withValues(alpha: 0.75),
+              side: BorderSide(color: JanColors.primary.withValues(alpha: 0.25)),
+              shape: const StadiumBorder(),
               onPressed: _busy ? null : () => _send(trs(q)),
             ),
         ]),
@@ -279,8 +323,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
   Widget _userBubble(String text) => _bubble(
         alignEnd: true,
-        color: JanColors.navy,
-        child: m.Text(text, style: const TextStyle(color: JanColors.white)),
+        child: m.Text(text, style: const TextStyle(color: JanColors.white, height: 1.35)),
       );
 
   Widget _assistantBubble(AssistantReply r) {
@@ -301,8 +344,16 @@ class _AssistantScreenState extends State<AssistantScreen> {
           Wrap(spacing: JanSpace.xs, runSpacing: JanSpace.xs, children: [
             for (final a in r.actions)
               ActionChip(
-                avatar: Icon(_actionIcon(a.type), size: 18),
-                label: m.Text(a.label),
+                avatar: Icon(_actionIcon(a.type), size: 18,
+                    color: a.type == AssistantAction.startReport ? JanColors.white : JanColors.primary),
+                label: m.Text(a.label,
+                    style: TextStyle(
+                        color: a.type == AssistantAction.startReport ? JanColors.white : JanColors.navy,
+                        fontWeight: FontWeight.w600)),
+                backgroundColor:
+                    a.type == AssistantAction.startReport ? JanColors.teal : JanColors.white.withValues(alpha: 0.8),
+                side: BorderSide(color: JanColors.primary.withValues(alpha: 0.25)),
+                shape: const StadiumBorder(),
                 onPressed: _busy && a.type == AssistantAction.ask ? null : () => _onAction(a),
               ),
           ]),
@@ -382,7 +433,17 @@ class _AssistantScreenState extends State<AssistantScreen> {
     }
   }
 
-  Widget _bubble({required bool alignEnd, required Widget child, Color color = JanColors.white}) {
+  /// Chat bubble: the user's in a glossy blue gradient, the assistant's as
+  /// frosted glass, with a tail corner towards the speaker.
+  Widget _bubble({required bool alignEnd, required Widget child}) {
+    const r = Radius.circular(20);
+    const tail = Radius.circular(6);
+    final radius = BorderRadius.only(
+      topLeft: r,
+      topRight: r,
+      bottomLeft: alignEnd ? r : tail,
+      bottomRight: alignEnd ? tail : r,
+    );
     return Align(
       alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
@@ -391,9 +452,26 @@ class _AssistantScreenState extends State<AssistantScreen> {
           margin: const EdgeInsets.symmetric(vertical: JanSpace.xs),
           padding: const EdgeInsets.all(JanSpace.sm + 2),
           decoration: BoxDecoration(
-            color: color,
-            borderRadius: JanRadius.xlAll,
-            border: Border.all(color: JanColors.divider),
+            borderRadius: radius,
+            gradient: alignEnd
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [JanColors.primary, JanColors.navy],
+                  )
+                : LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [JanColors.white.withValues(alpha: 0.92), JanColors.white.withValues(alpha: 0.74)],
+                  ),
+            border: Border.all(color: alignEnd ? Colors.transparent : JanColors.white.withValues(alpha: 0.9)),
+            boxShadow: [
+              BoxShadow(
+                color: (alignEnd ? JanColors.primary : JanColors.navy).withValues(alpha: alignEnd ? 0.28 : 0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: child,
         ),
@@ -402,11 +480,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
   }
 
   Widget _composer() {
-    return Material(
-      color: JanColors.white,
-      elevation: 4,
+    return JanGlass(
+      borderRadius: BorderRadius.zero,
+      blur: 16,
+      opacity: 0.86,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(JanSpace.md, JanSpace.xs, JanSpace.xs, JanSpace.xs),
+        padding: const EdgeInsets.fromLTRB(JanSpace.md, JanSpace.sm, JanSpace.sm, JanSpace.xs),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(
@@ -417,13 +496,39 @@ class _AssistantScreenState extends State<AssistantScreen> {
                 maxLines: 4,
                 textInputAction: TextInputAction.send,
                 onSubmitted: _send,
-                decoration: InputDecoration(hintText: trs('Type your question'), counterText: ''),
+                decoration: InputDecoration(
+                  hintText: trs('Type your question'),
+                  counterText: '',
+                  filled: true,
+                  fillColor: JanColors.white.withValues(alpha: 0.9),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: const BorderRadius.all(Radius.circular(26)),
+                    borderSide: BorderSide(color: JanColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: const BorderRadius.all(Radius.circular(26)),
+                    borderSide: BorderSide(color: JanColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  focusedBorder: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(26)),
+                    borderSide: BorderSide(color: JanColors.primary, width: 1.6),
+                  ),
+                ),
               ),
             ),
-            IconButton(
-              tooltip: trs('Send'),
-              onPressed: _busy ? null : () => _send(_input.text),
-              icon: const Icon(Icons.send_rounded, color: JanColors.primary),
+            const SizedBox(width: JanSpace.xs),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(colors: [JanColors.primary, JanColors.teal]),
+                boxShadow: [BoxShadow(color: JanColors.primary.withValues(alpha: 0.4), blurRadius: 14, offset: const Offset(0, 4))],
+              ),
+              child: IconButton(
+                tooltip: trs('Send'),
+                onPressed: _busy ? null : () => _send(_input.text),
+                icon: const Icon(Icons.send_rounded, color: JanColors.white),
+              ),
             ),
           ]),
           const Text('Do not type your phone number or home address here.',

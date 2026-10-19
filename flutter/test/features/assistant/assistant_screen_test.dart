@@ -28,6 +28,8 @@ AssistantReply _statusReply() => const AssistantReply(
 Finder _selectable(String text) => find.byWidgetPredicate((w) => w is SelectableText && w.data == text);
 
 void main() {
+  // the drifting liquid background never settles; switched off so pumpAndSettle can finish
+  setUpAll(() => AssistantScreen.liquidMotion = false);
   tearDown(() => ComplaintPrefill.description.value = null);
 
   testWidgets('a starter question is sent and the reply shows the app status badge', (tester) async {

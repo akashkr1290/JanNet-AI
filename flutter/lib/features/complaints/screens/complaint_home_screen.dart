@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Text;
 
 import '../../../core/l10n/app_strings.dart';
+import '../../../core/widgets/jan_liquid.dart';
 import '../../../core/widgets/jan_shell.dart';
 import '../../assistant/assistant_screen.dart';
 import '../../auth/auth_api.dart';
@@ -86,12 +87,11 @@ class _ComplaintHomeScreenState extends State<ComplaintHomeScreen> {
           currentIndex: _tab,
           onDestinationSelected: (i) => setState(() => _tab = i),
           onLogout: _logout,
-          floatingActionButton: FloatingActionButton.extended(
-            heroTag: 'jannet-sahayak',
-            tooltip: trs('Ask JanNet Sahayak'),
+          floatingActionButton: JanLiquidButton(
+            icon: Icons.support_agent_rounded,
+            label: 'Ask Sahayak',
+            tooltip: 'Ask JanNet Sahayak',
             onPressed: _openAssistant,
-            icon: const Icon(Icons.support_agent_rounded),
-            label: const Text('Ask Sahayak'),
           ),
           actions: [
             JanShellAction(icon: Icons.notifications_outlined, tooltip: trs('Notifications'), onPressed: _openNotifications),

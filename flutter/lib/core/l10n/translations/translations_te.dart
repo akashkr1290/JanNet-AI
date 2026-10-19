@@ -1020,4 +1020,9 @@ const Map<String, String> kTranslationsTe = {
   'Ask Sahayak': 'సహాయక్‌ను అడగండి',
   'The assistant filled in the description. Check it, then add the photo and the place.': 'సహాయకుడు వివరణను నింపాడు. దాన్ని తనిఖీ చేసి, ఆపై ఫోటో మరియు స్థలాన్ని జోడించండి.',
   'Close': 'మూసివేయి',
+  'Ask about your complaints': 'మీ ఫిర్యాదుల గురించి అడగండి',
+  'by ward': 'వార్డుల వారీగా',
+  'Of all complaints accepted or joined to an earlier report so far, the share the AI handled on its own. The rest were checked by the Verification Team.': 'ఇప్పటివరకు అంగీకరించిన లేదా మునుపటి నివేదికతో కలిపిన అన్ని ఫిర్యాదులలో AI స్వయంగా చూసిన వాటా. మిగిలినవాటిని ధృవీకరణ బృందం తనిఖీ చేసింది.',
+  'Share of all complaints that were joined to an earlier report of the same problem nearby.': 'సమీపంలో అదే సమస్యపై మునుపటి నివేదికతో కలిపిన ఫిర్యాదుల వాటా.',
+  'Share of notifications in the last 30 days that could not be delivered. Above 5% means e-mail delivery needs checking.': 'గత 30 రోజుల్లో చేరని నోటిఫికేషన్‌ల వాటా. 5% కంటే ఎక్కువ ఉంటే ఇ-మెయిల్ డెలివరీని తనిఖీ చేయాలి.',
 };

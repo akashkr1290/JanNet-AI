@@ -9,6 +9,7 @@ import '../../../core/widgets/jan_states.dart';
 import '../../../core/widgets/jan_surfaces.dart';
 import '../department_api.dart';
 import '../models/department_performance.dart';
+import '../../dashboard/screens/kpi_complaints_screen.dart';
 import '../../../core/l10n/tr_text.dart';
 
 /// Phase 13 (SRS 16.2 "Department Performance View (Department Head)":
@@ -113,15 +114,20 @@ class _DepartmentPerformanceScreenState extends State<DepartmentPerformanceScree
                 JanStatGrid(
                   maxColumns: 3,
                   children: [
-                    _kpiTile('Total', perf.totalComplaints.toString(), Icons.apartment_rounded, JanTone.navy),
-                    _kpiTile('Open', perf.openComplaints.toString(), Icons.pending_actions_rounded, JanTone.amber),
-                    _kpiTile('Resolved', perf.resolvedComplaints.toString(), Icons.task_alt_rounded, JanTone.teal),
-                    _kpiTile('Escalated', perf.escalatedComplaints.toString(), Icons.priority_high_rounded, JanTone.light),
+                    _kpiTile('Total', perf.totalComplaints.toString(), Icons.apartment_rounded, JanTone.navy,
+                        onTap: () => _openKpi('TOTAL', 'All complaints')),
+                    _kpiTile('Open', perf.openComplaints.toString(), Icons.pending_actions_rounded, JanTone.amber,
+                        onTap: () => _openKpi('OPEN', 'Open complaints')),
+                    _kpiTile('Resolved', perf.resolvedComplaints.toString(), Icons.task_alt_rounded, JanTone.teal,
+                        onTap: () => _openKpi('RESOLVED', 'Resolved complaints')),
+                    _kpiTile('Escalated', perf.escalatedComplaints.toString(), Icons.priority_high_rounded, JanTone.light,
+                        onTap: () => _openKpi('ESCALATED', 'Escalated complaints')),
                     _kpiTile(
                       'Avg Resolution',
                       perf.avgResolutionHours != null ? '${perf.avgResolutionHours!.toStringAsFixed(1)}h' : 'N/A',
                       Icons.timer_outlined,
                       JanTone.blue,
+                      onTap: () => _openKpi('RESOLVED', 'Resolved complaints'),
                     ),
                   ],
                 ),
@@ -181,8 +187,17 @@ class _DepartmentPerformanceScreenState extends State<DepartmentPerformanceScree
     );
   }
 
-  Widget _kpiTile(String label, String value, IconData icon, JanTone tone) {
-    return JanStatCard(label: label, value: value, icon: icon, tone: tone);
+  Widget _kpiTile(String label, String value, IconData icon, JanTone tone, {VoidCallback? onTap}) {
+    return JanStatCard(label: label, value: value, icon: icon, tone: tone, onTap: onTap);
+  }
+
+  /// A tap on a tile opens this department's complaints behind it (same
+  /// conditions as the counts - GET /dashboard/complaints?departmentId=...).
+  Future<void> _openKpi(String kpi, String title) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => KpiComplaintsScreen(kpi: kpi, title: title, departmentId: widget.departmentId),
+    ));
+    if (mounted) _refresh();
   }
 
   Widget _slaComplianceBar(double percent) {

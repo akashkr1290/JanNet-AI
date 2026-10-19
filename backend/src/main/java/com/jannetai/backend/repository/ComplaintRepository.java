@@ -483,6 +483,14 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
 
     List<Complaint> findTop5ByCitizen_UserIdOrderByCreatedAtDesc(Long citizenId);
 
+    /** Dashboard tiles -> their complaints (PersonalDashboardService#tileComplaints). */
+    Page<Complaint> findByCitizen_UserId(Long citizenId, Pageable pageable);
+
+    Page<Complaint> findByCitizen_UserIdAndStatusIn(Long citizenId, Collection<ComplaintStatus> statuses, Pageable pageable);
+
+    Page<Complaint> findByAssignedOfficer_UserIdAndStatusIn(Long officerId, Collection<ComplaintStatus> statuses,
+                                                            Pageable pageable);
+
     @Query("SELECT c.status, COUNT(c) FROM Complaint c WHERE c.assignedOfficer.userId = :officerId GROUP BY c.status")
     List<Object[]> countByStatusForOfficer(@Param("officerId") Long officerId);
 

@@ -1020,4 +1020,9 @@ const Map<String, String> kTranslationsMr = {
   'Ask Sahayak': 'सहाय्यकाला विचारा',
   'The assistant filled in the description. Check it, then add the photo and the place.': 'सहाय्यकाने वर्णन भरले आहे. ते तपासा, मग फोटो आणि ठिकाण जोडा.',
   'Close': 'बंद करा',
+  'Ask about your complaints': 'तुमच्या तक्रारींबद्दल विचारा',
+  'by ward': 'वॉर्डनुसार',
+  'Of all complaints accepted or joined to an earlier report so far, the share the AI handled on its own. The rest were checked by the Verification Team.': 'आतापर्यंत स्वीकारलेल्या किंवा आधीच्या अहवालाला जोडलेल्या सर्व तक्रारींपैकी AI ने स्वतः हाताळलेला वाटा. उरलेल्या पडताळणी पथकाने तपासल्या.',
+  'Share of all complaints that were joined to an earlier report of the same problem nearby.': 'जवळपास त्याच समस्येच्या आधीच्या अहवालाला जोडलेल्या तक्रारींचा एकूण तक्रारींमधील वाटा.',
+  'Share of notifications in the last 30 days that could not be delivered. Above 5% means e-mail delivery needs checking.': 'मागील 30 दिवसांत पोहोचू न शकलेल्या सूचनांचा वाटा. 5% पेक्षा जास्त असल्यास ई-मेल वितरण तपासा.',
 };

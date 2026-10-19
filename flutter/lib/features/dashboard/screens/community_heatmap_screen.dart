@@ -90,9 +90,12 @@ class _CommunityHeatmapScreenState extends State<CommunityHeatmapScreen> {
                 JanStatGrid(
                   maxColumns: 3,
                   children: [
-                    JanStatCard(label: 'Total reports', value: '$total', icon: Icons.apartment_rounded, tone: JanTone.navy),
-                    JanStatCard(label: 'Open issues', value: '$open', icon: Icons.schedule_rounded, tone: JanTone.amber),
-                    JanStatCard(label: 'Wards reporting', value: '$active', icon: Icons.location_city_rounded, tone: JanTone.teal),
+                    JanStatCard(label: 'Total reports', value: '$total', icon: Icons.apartment_rounded, tone: JanTone.navy,
+                        onTap: () => _showWards(context, 'Total reports', points, (p) => p.complaintCount)),
+                    JanStatCard(label: 'Open issues', value: '$open', icon: Icons.schedule_rounded, tone: JanTone.amber,
+                        onTap: () => _showWards(context, 'Open issues', points, (p) => p.openComplaintCount)),
+                    JanStatCard(label: 'Wards reporting', value: '$active', icon: Icons.location_city_rounded, tone: JanTone.teal,
+                        onTap: () => _showWards(context, 'Wards reporting', points, (p) => p.complaintCount)),
                   ],
                 ),
                 const JanSectionHeader(title: 'Hotspots by Ward'),
@@ -121,6 +124,49 @@ class _CommunityHeatmapScreenState extends State<CommunityHeatmapScreen> {
     );
     if (widget.embedded) return body;
     return JanPage(title: 'Community Heatmap', body: body);
+  }
+
+  /// A tap on a city tile lists the wards behind the number, largest first.
+  Future<void> _showWards(BuildContext context, String title, List<_WardHeatmapPoint> points,
+      int Function(_WardHeatmapPoint) count) {
+    final rows = points.where((p) => count(p) > 0).toList()..sort((a, b) => count(b).compareTo(count(a)));
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(JanSpace.lg, 0, JanSpace.lg, JanSpace.xs),
+              child: Text('${trs(title)} - ${trs('by ward')}',
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: JanColors.navy)),
+            ),
+            if (rows.isEmpty)
+              const Padding(padding: EdgeInsets.all(JanSpace.lg), child: Text('No complaints'))
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(JanSpace.md, 0, JanSpace.md, JanSpace.md),
+                  itemCount: rows.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1),
+                  itemBuilder: (context, i) => ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: JanColors.primaryLight,
+                      child: Text('${i + 1}', style: const TextStyle(color: JanColors.navy, fontWeight: FontWeight.w700)),
+                    ),
+                    title: Text(rows[i].wardName),
+                    trailing: Text('${count(rows[i])}',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: JanColors.ink)),
+                  ),
+                ),
+              ),
+          ]),
+        ),
+      ),
+    );
   }
 }
 
