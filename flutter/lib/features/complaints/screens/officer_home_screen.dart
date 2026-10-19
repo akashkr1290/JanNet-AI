@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/jan_liquid.dart';
 import '../../../core/widgets/jan_shell.dart';
+import '../../assistant/assistant_screen.dart';
 import '../../auth/auth_api.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../dashboard/screens/officer_dashboard_screen.dart';
@@ -31,6 +33,14 @@ class _OfficerHomeScreenState extends State<OfficerHomeScreen> {
     );
   }
 
+  /// JanNet Sahayak v2: the chat window for the officer's own work. "Open
+  /// queue" in the chat comes back here and shows the Queue tab.
+  Future<void> _openAssistant() async {
+    final exit = await AssistantScreen.open(context, audience: AssistantAudience.officer);
+    if (!mounted || exit != AssistantExit.myComplaints) return;
+    setState(() => _tab = 1);
+  }
+
   // UI redesign: shared adaptive JanShell (bottom navigation on phones,
   // navy side rail on web). Same two tabs, actions and sign-out.
   @override
@@ -41,6 +51,12 @@ class _OfficerHomeScreenState extends State<OfficerHomeScreen> {
       currentIndex: _tab,
       onDestinationSelected: (i) => setState(() => _tab = i),
       onLogout: _logout,
+      floatingActionButton: JanLiquidButton(
+        icon: Icons.support_agent_rounded,
+        label: 'Ask Sahayak',
+        tooltip: 'Ask JanNet Sahayak',
+        onPressed: _openAssistant,
+      ),
       actions: [
         JanShellAction(
           icon: Icons.notifications_outlined,

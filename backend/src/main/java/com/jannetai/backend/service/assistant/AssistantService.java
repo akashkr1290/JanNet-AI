@@ -10,6 +10,7 @@ import com.jannetai.backend.dto.assistant.AssistantReply;
 import com.jannetai.backend.dto.assistant.HelpArticleResponse;
 import com.jannetai.backend.dto.complaint.ComplaintResponse;
 import com.jannetai.backend.dto.complaint.ComplaintSummaryResponse;
+import com.jannetai.backend.dto.complaint.StatusHistoryResponse;
 import com.jannetai.backend.entity.AssistantSession;
 import com.jannetai.backend.entity.HelpArticle;
 import com.jannetai.backend.entity.User;
@@ -58,6 +59,11 @@ import java.util.Set;
  * </ol>
  * v1 has no write actions: guided filing only fills the app's form; the
  * citizen still takes the photo, confirms the place and presses Submit.
+ *
+ * <p>v2 (staff): officers, department heads and admins also get answers about
+ * their work - today's work, overdue, waiting for an officer, workload, this
+ * week's numbers (StaffAssistant, same scope as their screens) - and anyone can
+ * ask for the history of a complaint they can see. Still read-only.
  */
 @Service
 public class AssistantService {
@@ -66,6 +72,8 @@ public class AssistantService {
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     private static final int MAX_DESCRIPTION = 500;
     private static final int LIST_SIZE = 5;
+    /** The last steps shown by a history answer (the full timeline is on the complaint screen). */
+    private static final int HISTORY_STEPS = 8;
     /** Statuses for which the department name adds nothing (not yet routed, or not handled). */
     private static final Set<ComplaintStatus> NO_DEPARTMENT_LINE = EnumSet.of(ComplaintStatus.DRAFT,
             ComplaintStatus.SUBMITTED, ComplaintStatus.AI_PROCESSING, ComplaintStatus.REJECTED, ComplaintStatus.DUPLICATE);
@@ -86,11 +94,13 @@ public class AssistantService {
     private final AiServiceClient aiServiceClient;
     private final AssistantConversationStore store;
     private final AssistantRateLimiter rateLimiter;
+    private final StaffAssistant staffAssistant;
     private final boolean llmEnabled;
 
     public AssistantService(ComplaintService complaintService, ComplaintRepository complaintRepository,
                             HelpArticleRepository helpArticleRepository, AiServiceClient aiServiceClient,
                             AssistantConversationStore store, AssistantRateLimiter rateLimiter,
+                            StaffAssistant staffAssistant,
                             @Value("${app.assistant.llm-enabled:true}") boolean llmEnabled) {
         this.complaintService = complaintService;
         this.complaintRepository = complaintRepository;
@@ -98,6 +108,7 @@ public class AssistantService {
         this.aiServiceClient = aiServiceClient;
         this.store = store;
         this.rateLimiter = rateLimiter;
+        this.staffAssistant = staffAssistant;
         this.llmEnabled = llmEnabled;
     }
 
@@ -131,10 +142,11 @@ public class AssistantService {
     // ---- routing ----
 
     Outcome answer(User user, String text, String language) {
-        Routed routed = IntentRouter.route(text);
+        boolean staff = StaffAssistant.isStaff(user);
+        Routed routed = IntentRouter.route(text, staff);
         return switch (routed.intent()) {
-            case GREETING -> rule(Intent.GREETING, AssistantTexts.get(AssistantTexts.GREETING, language),
-                    menu(user, language));
+            case GREETING -> rule(Intent.GREETING, AssistantTexts.get(staff ? AssistantTexts.GREETING_STAFF
+                    : AssistantTexts.GREETING, language), menu(user, language));
             case THANKS -> rule(Intent.THANKS, AssistantTexts.get(AssistantTexts.THANKS, language), menu(user, language));
             case EMERGENCY -> rule(Intent.EMERGENCY, AssistantTexts.get(AssistantTexts.EMERGENCY, language), List.of());
             case COMPLAINT_STATUS -> status(user, routed.referenceNumber(), language);
@@ -143,6 +155,13 @@ public class AssistantService {
             case REPORT_DRAFT -> draft(user, text, routed.category(), language);
             case REPORT_START -> reportStart(user, language);
             case HELP_ARTICLE, OPEN_QUESTION -> helpOrOpen(user, text, routed.articleSlug(), language);
+            case COMPLAINT_HISTORY -> history(user, routed.referenceNumber(), language);
+            // Work questions are for staff; anyone else (a staff chip typed by a citizen) gets their own complaints.
+            case STAFF_TODAY -> staff ? staffAssistant.today(user, language) : myComplaints(user, null, language);
+            case STAFF_OVERDUE -> staff ? staffAssistant.overdue(user, language) : myComplaints(user, null, language);
+            case STAFF_UNASSIGNED -> staff ? staffAssistant.unassigned(user, language) : myComplaints(user, null, language);
+            case STAFF_WORKLOAD -> staff ? staffAssistant.workload(user, language) : myComplaints(user, null, language);
+            case STAFF_STATS -> staff ? staffAssistant.stats(user, language) : myComplaints(user, null, language);
         };
     }
 
@@ -158,6 +177,37 @@ public class AssistantService {
         ComplaintResponse d = detail.get();
         return new Outcome(Intent.COMPLAINT_STATUS, statusText(d, language), SOURCE_RULE,
                 List.of(card(d)), complaintActions(d, language), List.of("complaint_lookup"), d.complaintId());
+    }
+
+    /**
+     * "JN-2026-000123 history": the status steps of a complaint the user can
+     * open in the app (the same steps as its timeline), oldest first. Only the
+     * date and the status are given - no names and no notes.
+     */
+    private Outcome history(User user, String reference, String language) {
+        Optional<ComplaintResponse> detail = visibleComplaint(user, reference);
+        if (detail.isEmpty()) {
+            return new Outcome(Intent.COMPLAINT_HISTORY, AssistantTexts.get(AssistantTexts.NOT_FOUND, language, reference),
+                    SOURCE_RULE, List.of(), menu(user, language), List.of("complaint_lookup"), null);
+        }
+        ComplaintResponse d = detail.get();
+        List<StatusHistoryResponse> steps = d.statusHistory() == null ? List.of() : d.statusHistory().stream()
+                .filter(h -> h.newStatus() != null && h.changedAt() != null)
+                .sorted(java.util.Comparator.comparing(StatusHistoryResponse::changedAt))
+                .toList();
+        StringBuilder reply = new StringBuilder();
+        if (steps.isEmpty()) {
+            reply.append(AssistantTexts.get(AssistantTexts.HISTORY_EMPTY, language, d.referenceNumber()));
+        } else {
+            reply.append(AssistantTexts.get(AssistantTexts.HISTORY_HEAD, language, d.referenceNumber()));
+            for (StatusHistoryResponse h : steps.subList(Math.max(0, steps.size() - HISTORY_STEPS), steps.size())) {
+                reply.append("\n• ").append(DATE.format(h.changedAt())).append(": ")
+                        .append(AssistantTexts.statusLabel(h.newStatus(), language));
+            }
+        }
+        reply.append("\n\n").append(statusText(d, language));
+        return new Outcome(Intent.COMPLAINT_HISTORY, reply.toString(), SOURCE_RULE, List.of(card(d)),
+                complaintActions(d, language), List.of("complaint_lookup"), d.complaintId());
     }
 
     /** The complaint only if this user may open it in the app; otherwise empty (same as not existing). */
@@ -202,9 +252,12 @@ public class AssistantService {
             if (user.getRole() == Role.CITIZEN) {
                 actions.add(new AssistantAction(AssistantAction.START_REPORT,
                         AssistantTexts.get(AssistantTexts.ACTION_START_REPORT, language), ""));
+                actions.add(AssistantAction.ask(AssistantTexts.get(AssistantTexts.CHIP_REPORT, language)));
+            } else {
+                actions.addAll(menu(user, language));
             }
-            actions.add(AssistantAction.ask(AssistantTexts.get(AssistantTexts.CHIP_REPORT, language)));
-            return new Outcome(Intent.MY_COMPLAINTS, AssistantTexts.get(AssistantTexts.NO_COMPLAINTS, language),
+            return new Outcome(Intent.MY_COMPLAINTS, AssistantTexts.get(user.getRole() == Role.CITIZEN
+                    ? AssistantTexts.NO_COMPLAINTS : AssistantTexts.NO_COMPLAINTS_STAFF, language),
                     SOURCE_RULE, List.of(), actions, List.of("complaint_list"), null);
         }
         if (page.getTotalElements() == 1) {
@@ -219,9 +272,7 @@ public class AssistantService {
                 .toList();
         return new Outcome(Intent.MY_COMPLAINTS,
                 AssistantTexts.get(AssistantTexts.MY_COMPLAINTS, language, page.getTotalElements()), SOURCE_RULE, cards,
-                List.of(new AssistantAction(AssistantAction.OPEN_MY_COMPLAINTS,
-                        AssistantTexts.get(AssistantTexts.ACTION_MY_COMPLAINTS, language), null)),
-                List.of("complaint_list"), null);
+                listAction(user, language), List.of("complaint_list"), null);
     }
 
     private Outcome rejected(User user, String language) {
@@ -423,8 +474,32 @@ public class AssistantService {
                 AssistantTexts.get(AssistantTexts.ACTION_OPEN_COMPLAINT, language), String.valueOf(d.complaintId())));
     }
 
-    /** The quick buttons under most replies. */
+    /**
+     * The button that opens the full list: My Complaints for a citizen, the
+     * queue for an officer or department head; an admin has no queue screen.
+     */
+    private static List<AssistantAction> listAction(User user, String language) {
+        return switch (user.getRole()) {
+            case GOVERNMENT_OFFICER, DEPARTMENT_HEAD -> List.of(StaffAssistant.queueAction(language));
+            case ADMIN, SUPER_ADMIN -> List.of();
+            default -> List.of(new AssistantAction(AssistantAction.OPEN_MY_COMPLAINTS,
+                    AssistantTexts.get(AssistantTexts.ACTION_MY_COMPLAINTS, language), null));
+        };
+    }
+
+    /** The quick buttons under most replies - the questions this role asks most. */
     static List<AssistantAction> menu(User user, String language) {
+        List<String> staffChips = switch (user.getRole()) {
+            case GOVERNMENT_OFFICER -> List.of(AssistantTexts.CHIP_TODAY, AssistantTexts.CHIP_OVERDUE, AssistantTexts.CHIP_STATS);
+            case DEPARTMENT_HEAD -> List.of(AssistantTexts.CHIP_UNASSIGNED, AssistantTexts.CHIP_OVERDUE,
+                    AssistantTexts.CHIP_WORKLOAD, AssistantTexts.CHIP_STATS);
+            case ADMIN, SUPER_ADMIN -> List.of(AssistantTexts.CHIP_STATS, AssistantTexts.CHIP_OVERDUE,
+                    AssistantTexts.CHIP_UNASSIGNED, AssistantTexts.CHIP_WORKLOAD);
+            default -> List.of();
+        };
+        if (!staffChips.isEmpty()) {
+            return staffChips.stream().map(key -> AssistantAction.ask(AssistantTexts.get(key, language))).toList();
+        }
         List<AssistantAction> actions = new ArrayList<>();
         actions.add(AssistantAction.ask(AssistantTexts.get(AssistantTexts.CHIP_WHERE, language)));
         if (user.getRole() == Role.CITIZEN) {

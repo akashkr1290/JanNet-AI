@@ -97,6 +97,76 @@ class IntentRouterTest {
         }
     }
 
+    // ---- Sahayak v2 ----
+
+    @ParameterizedTest(name = "staff: {0} -> {1}")
+    @CsvSource(delimiter = '|', value = {
+            "what is overdue for me today|STAFF_OVERDUE",
+            "aaj kya overdue hai|STAFF_OVERDUE",
+            "how many complaints are past the deadline|STAFF_OVERDUE",
+            "कौन सी शिकायतें देरी से हैं|STAFF_OVERDUE",
+            "sla breaches|STAFF_OVERDUE",
+            "complaints waiting for an officer|STAFF_UNASSIGNED",
+            "assign nahi hua|STAFF_UNASSIGNED",
+            "which officer has the most work|STAFF_WORKLOAD",
+            "अधिकारियों का कार्यभार|STAFF_WORKLOAD",
+            "department wise workload|STAFF_WORKLOAD",
+            "this week's numbers|STAFF_STATS",
+            "is hafte ke aankde|STAFF_STATS",
+            "kitni complaints aayi|STAFF_STATS",
+            "my work for today|STAFF_TODAY",
+            "aaj ka mera kaam|STAFF_TODAY",
+            "what should I do today|STAFF_TODAY",
+            "where is my complaint|MY_COMPLAINTS",
+            "hi|GREETING",
+            "there is a pothole near the bus stand|REPORT_DRAFT",
+    })
+    void staffWorkQuestions(String text, Intent intent) {
+        assertThat(IntentRouter.route(text, true).intent()).isEqualTo(intent);
+    }
+
+    @ParameterizedTest(name = "citizen: {0}")
+    @CsvSource(delimiter = '|', value = {
+            "aaj gaddha dekha|REPORT_DRAFT",
+            "meri complaint late ho gayi|MY_COMPLAINTS",
+            "is hafte ke aankde|OPEN_QUESTION",
+            "kaam kab shuru hoga|OPEN_QUESTION",
+    })
+    void staffWordsNeverChangeACitizensRoute(String text, Intent intent) {
+        assertThat(IntentRouter.route(text).intent()).isEqualTo(intent);
+        assertThat(IntentRouter.route(text, false).intent()).isEqualTo(intent);
+    }
+
+    @Test
+    void everyStaffChipRoutesInEveryLanguage() {
+        for (String lang : AssistantTexts.LANGUAGES) {
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_TODAY, lang), true).intent())
+                    .as(lang).isEqualTo(Intent.STAFF_TODAY);
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_OVERDUE, lang), true).intent())
+                    .as(lang).isEqualTo(Intent.STAFF_OVERDUE);
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_UNASSIGNED, lang), true).intent())
+                    .as(lang).isEqualTo(Intent.STAFF_UNASSIGNED);
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_WORKLOAD, lang), true).intent())
+                    .as(lang).isEqualTo(Intent.STAFF_WORKLOAD);
+            assertThat(IntentRouter.route(AssistantTexts.get(AssistantTexts.CHIP_STATS, lang), true).intent())
+                    .as(lang).isEqualTo(Intent.STAFF_STATS);
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "JN-2026-000123 history|JN-2026-000123",
+            "jn 2026 45 ka itihas batao|JN-2026-000045",
+            "JN-2026-000123 का इतिहास|JN-2026-000123",
+    })
+    void historyOfAComplaintForEveryone(String text, String reference) {
+        for (boolean staff : new boolean[] {false, true}) {
+            IntentRouter.Routed r = IntentRouter.route(text, staff);
+            assertThat(r.intent()).isEqualTo(Intent.COMPLAINT_HISTORY);
+            assertThat(r.referenceNumber()).isEqualTo(reference);
+        }
+    }
+
     @Test
     void emptyTextIsAGreeting() {
         assertThat(IntentRouter.route("  ").intent()).isEqualTo(Intent.GREETING);

@@ -494,6 +494,12 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
     @Query("SELECT c.status, COUNT(c) FROM Complaint c WHERE c.assignedOfficer.userId = :officerId GROUP BY c.status")
     List<Object[]> countByStatusForOfficer(@Param("officerId") Long officerId);
 
+    /** JanNet Sahayak v2 "this week's numbers": complaints received since a time (all departments). */
+    List<Complaint> findByCreatedAtGreaterThanEqual(LocalDateTime since);
+
+    /** JanNet Sahayak v2 "this week's numbers": complaints of one department received since a time. */
+    List<Complaint> findByDepartment_DepartmentIdAndCreatedAtGreaterThanEqual(Long departmentId, LocalDateTime since);
+
     /** Audit GAP-041: a citizen's own complaints for a personal-data export (SRS 24 access request). */
     List<Complaint> findByCitizen_UserIdOrderByCreatedAtDesc(Long citizenId);
 }

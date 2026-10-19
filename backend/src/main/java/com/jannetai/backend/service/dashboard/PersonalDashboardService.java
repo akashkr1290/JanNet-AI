@@ -172,10 +172,13 @@ public class PersonalDashboardService {
 
     // --------------------- dashboard tiles -> their complaints ---------------------
 
-    /** The SLA groups of the officer dashboard (one rule for the counts and the lists). */
-    enum SlaBucket { OVERDUE, AT_RISK, ON_TRACK, NO_SLA }
+    /**
+     * The SLA groups of the officer dashboard - one rule for the counts, the
+     * tile lists and JanNet Sahayak's "what is overdue" answers.
+     */
+    public enum SlaBucket { OVERDUE, AT_RISK, ON_TRACK, NO_SLA }
 
-    private SlaBucket slaBucket(Complaint c, LocalDateTime now) {
+    public SlaBucket slaBucket(Complaint c, LocalDateTime now) {
         LocalDateTime due = slaPolicy.dueAt(c);
         if (due == null) {
             return SlaBucket.NO_SLA;

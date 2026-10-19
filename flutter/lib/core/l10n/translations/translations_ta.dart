@@ -1025,4 +1025,11 @@ const Map<String, String> kTranslationsTa = {
   'Of all complaints accepted or joined to an earlier report so far, the share the AI handled on its own. The rest were checked by the Verification Team.': 'இதுவரை ஏற்கப்பட்ட அல்லது முந்தைய புகாருடன் இணைக்கப்பட்ட அனைத்துப் புகார்களில் AI தானாகக் கையாண்ட பங்கு. மீதமுள்ளவற்றைச் சரிபார்ப்புக் குழு சரிபார்த்தது.',
   'Share of all complaints that were joined to an earlier report of the same problem nearby.': 'அருகில் அதே பிரச்சினைக்கான முந்தைய புகாருடன் இணைக்கப்பட்ட புகார்களின் பங்கு.',
   'Share of notifications in the last 30 days that could not be delivered. Above 5% means e-mail delivery needs checking.': 'கடந்த 30 நாட்களில் சேர்க்க முடியாத அறிவிப்புகளின் பங்கு. 5%-க்கு மேல் இருந்தால் மின்னஞ்சல் அனுப்புதலைச் சரிபார்க்கவும்.',
+  'My work for today': 'இன்றைய என் வேலை',
+  'What is overdue?': 'எந்தப் புகார்களின் காலக்கெடு கடந்துவிட்டது?',
+  'Waiting for an officer': 'அதிகாரிக்காகக் காத்திருப்பவை',
+  'Officer workload': 'அதிகாரிகளின் பணிச்சுமை',
+  'This week\'s numbers': 'இந்த வாரத்தின் எண்ணிக்கை',
+  'Ask about your work': 'உங்கள் வேலை பற்றிக் கேளுங்கள்',
+  'Namaste! I am JanNet Sahayak. Ask me about your work for today, what is overdue, or the history of a complaint, for example: JN-2026-000123 history.': 'வணக்கம்! நான் ஜன்நெட் சகாயக். இன்றைய உங்கள் வேலை, காலக்கெடு கடந்த புகார்கள் அல்லது ஒரு புகாரின் வரலாறு பற்றிக் கேளுங்கள், எ.கா.: JN-2026-000123 வரலாறு.',
 };

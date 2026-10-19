@@ -1025,4 +1025,11 @@ const Map<String, String> kTranslationsTe = {
   'Of all complaints accepted or joined to an earlier report so far, the share the AI handled on its own. The rest were checked by the Verification Team.': 'ఇప్పటివరకు అంగీకరించిన లేదా మునుపటి నివేదికతో కలిపిన అన్ని ఫిర్యాదులలో AI స్వయంగా చూసిన వాటా. మిగిలినవాటిని ధృవీకరణ బృందం తనిఖీ చేసింది.',
   'Share of all complaints that were joined to an earlier report of the same problem nearby.': 'సమీపంలో అదే సమస్యపై మునుపటి నివేదికతో కలిపిన ఫిర్యాదుల వాటా.',
   'Share of notifications in the last 30 days that could not be delivered. Above 5% means e-mail delivery needs checking.': 'గత 30 రోజుల్లో చేరని నోటిఫికేషన్‌ల వాటా. 5% కంటే ఎక్కువ ఉంటే ఇ-మెయిల్ డెలివరీని తనిఖీ చేయాలి.',
+  'My work for today': 'ఈరోజు నా పని',
+  'What is overdue?': 'ఏ ఫిర్యాదుల గడువు దాటింది?',
+  'Waiting for an officer': 'అధికారి కోసం వేచి ఉన్నవి',
+  'Officer workload': 'అధికారుల పని భారం',
+  'This week\'s numbers': 'ఈ వారం గణాంకాలు',
+  'Ask about your work': 'మీ పని గురించి అడగండి',
+  'Namaste! I am JanNet Sahayak. Ask me about your work for today, what is overdue, or the history of a complaint, for example: JN-2026-000123 history.': 'నమస్కారం! నేను జన్‌నెట్ సహాయక్. ఈరోజు మీ పని, గడువు దాటిన ఫిర్యాదులు లేదా ఒక ఫిర్యాదు చరిత్ర గురించి అడగండి, ఉదా.: JN-2026-000123 చరిత్ర.',
 };

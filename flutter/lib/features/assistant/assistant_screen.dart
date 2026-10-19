@@ -9,15 +9,23 @@ import '../../core/widgets/error_text.dart';
 import '../../core/widgets/jan_liquid.dart';
 import '../complaints/complaint_prefill.dart';
 import '../complaints/screens/complaint_detail_screen.dart';
+import '../complaints/screens/officer_complaint_detail_screen.dart';
+import '../dashboard/screens/kpi_complaints_screen.dart';
 import '../complaints/widgets/category_visuals.dart';
 import '../complaints/widgets/status_badge.dart';
 import 'assistant_api.dart';
 
-/// Where the citizen wants to go after the chat (returned by [AssistantScreen]).
+/// Where the user wants to go after the chat (returned by [AssistantScreen]).
+/// [myComplaints] is My Complaints for a citizen and the queue for staff.
 enum AssistantExit { report, myComplaints }
 
-/// JanNet Sahayak v1 - the citizen's in-app assistant (opened from the
-/// floating button on the citizen home, complaint_home_screen.dart).
+/// Who is chatting - decides the starter questions and which complaint screen
+/// a card opens. The backend answers by the signed-in role in any case.
+enum AssistantAudience { citizen, officer, departmentHead, admin }
+
+/// JanNet Sahayak - the in-app assistant, opened from the floating button on
+/// the citizen home (v1) and on the officer, department head and admin homes
+/// (v2, staff work questions).
 ///
 /// Shows the backend's replies with their cards (complaint, help article,
 /// report draft) and suggested-action chips. Replies are written by the
@@ -32,7 +40,13 @@ class AssistantScreen extends StatefulWidget {
   /// close button instead of a full-page app bar.
   final bool embedded;
 
-  const AssistantScreen({super.key, this.sender, this.embedded = false});
+  /// Sahayak v2: officers, department heads and admins get their own starter
+  /// questions, and complaint cards open the staff complaint screen.
+  final AssistantAudience audience;
+
+  const AssistantScreen({super.key, this.sender, this.embedded = false, this.audience = AssistantAudience.citizen});
+
+  bool get isStaff => audience != AssistantAudience.citizen;
 
   /// The drifting "liquid" background. Tests switch it off so frames settle.
   static bool liquidMotion = true;
@@ -40,7 +54,8 @@ class AssistantScreen extends StatefulWidget {
   /// Opens the assistant as a small chat window in the bottom-right corner
   /// (on a phone: a window over the lower part of the screen). Tapping
   /// outside it, or its close button, closes it.
-  static Future<AssistantExit?> open(BuildContext context, {AssistantSender? sender}) {
+  static Future<AssistantExit?> open(BuildContext context,
+      {AssistantSender? sender, AssistantAudience audience = AssistantAudience.citizen}) {
     return showGeneralDialog<AssistantExit>(
       context: context,
       barrierDismissible: true,
@@ -70,7 +85,7 @@ class AssistantScreen extends StatefulWidget {
                     opacity: 0.80,
                     child: Material(
                       type: MaterialType.transparency,
-                      child: AssistantScreen(sender: sender, embedded: true),
+                      child: AssistantScreen(sender: sender, embedded: true, audience: audience),
                     ),
                   ),
                 ),
@@ -97,6 +112,33 @@ class AssistantScreen extends StatefulWidget {
     'Why was my complaint rejected?',
     'How long will it take?',
   ];
+
+  /// Staff starter questions (Sahayak v2) - the backend's staff chips
+  /// (AssistantTexts CHIP_TODAY ... CHIP_STATS), recognised exactly.
+  static const officerStarterQuestions = [
+    'My work for today',
+    'What is overdue?',
+    "This week's numbers",
+  ];
+  static const departmentHeadStarterQuestions = [
+    'Waiting for an officer',
+    'What is overdue?',
+    'Officer workload',
+    "This week's numbers",
+  ];
+  static const adminStarterQuestions = [
+    "This week's numbers",
+    'What is overdue?',
+    'Waiting for an officer',
+    'Officer workload',
+  ];
+
+  List<String> get starters => switch (audience) {
+        AssistantAudience.citizen => starterQuestions,
+        AssistantAudience.officer => officerStarterQuestions,
+        AssistantAudience.departmentHead => departmentHeadStarterQuestions,
+        AssistantAudience.admin => adminStarterQuestions,
+      };
 
   @override
   State<AssistantScreen> createState() => _AssistantScreenState();
@@ -189,8 +231,14 @@ class _AssistantScreenState extends State<AssistantScreen> {
     switch (a.type) {
       case AssistantAction.openComplaint:
         final id = int.tryParse(a.value ?? '');
-        if (id != null) {
-          Navigator.of(context).push(MaterialPageRoute(builder: (_) => ComplaintDetailScreen(complaintId: id)));
+        if (id != null) _openComplaint(id);
+      case AssistantAction.openTile:
+        final tile = a.value?.trim() ?? '';
+        if (tile.isNotEmpty) {
+          // titled like the dashboard tile the list belongs to
+          final title = tile == 'OVERDUE' ? 'Overdue' : a.label;
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => KpiComplaintsScreen.mine(tile: tile, title: title, citizenView: !widget.isStaff)));
         }
       case AssistantAction.openMyComplaints:
         Navigator.of(context).pop(AssistantExit.myComplaints);
@@ -203,8 +251,10 @@ class _AssistantScreenState extends State<AssistantScreen> {
     }
   }
 
-  void _openComplaint(int id) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => ComplaintDetailScreen(complaintId: id)));
+  /// Staff open the complaint on the staff screen (actions, notes, assignment).
+  void _openComplaint(int id) => Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) =>
+          widget.isStaff ? OfficerComplaintDetailScreen(complaintId: id) : ComplaintDetailScreen(complaintId: id)));
 
   @override
   Widget build(BuildContext context) {
@@ -240,10 +290,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
                   child: const Icon(Icons.support_agent_rounded, size: 20),
                 ),
                 const SizedBox(width: JanSpace.sm),
-                const Expanded(
+                Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                    Text('JanNet Sahayak', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800)),
-                    Text('Ask about your complaints', style: TextStyle(fontSize: 12, color: Color(0xE6FFFFFF))),
+                    const Text('JanNet Sahayak', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800)),
+                    Text(widget.isStaff ? 'Ask about your work' : 'Ask about your complaints',
+                        style: const TextStyle(fontSize: 12, color: Color(0xE6FFFFFF))),
                   ]),
                 ),
               ]),
@@ -301,13 +352,15 @@ class _AssistantScreenState extends State<AssistantScreen> {
     return _bubble(
       alignEnd: false,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text(
-          'Namaste! I am JanNet Sahayak. Ask me where your complaint is, how to report a problem, or anything about this app.',
-          style: TextStyle(color: JanColors.ink),
+        Text(
+          widget.isStaff
+              ? 'Namaste! I am JanNet Sahayak. Ask me about your work for today, what is overdue, or the history of a complaint, for example: JN-2026-000123 history.'
+              : 'Namaste! I am JanNet Sahayak. Ask me where your complaint is, how to report a problem, or anything about this app.',
+          style: const TextStyle(color: JanColors.ink),
         ),
         const SizedBox(height: JanSpace.sm),
         Wrap(spacing: JanSpace.xs, runSpacing: JanSpace.xs, children: [
-          for (final q in AssistantScreen.starterQuestions)
+          for (final q in widget.starters)
             ActionChip(
               avatar: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: JanColors.primary),
               label: Text(q),
@@ -368,6 +421,8 @@ class _AssistantScreenState extends State<AssistantScreen> {
         return Icons.open_in_new_rounded;
       case AssistantAction.openMyComplaints:
         return Icons.list_alt_rounded;
+      case AssistantAction.openTile:
+        return Icons.view_list_rounded;
       case AssistantAction.startReport:
         return Icons.add_a_photo_outlined;
       default:

@@ -1025,4 +1025,11 @@ const Map<String, String> kTranslationsHi = {
   'Of all complaints accepted or joined to an earlier report so far, the share the AI handled on its own. The rest were checked by the Verification Team.': 'अब तक स्वीकार हुई या पहले की रिपोर्ट से जोड़ी गई सभी शिकायतों में से वह हिस्सा जो AI ने अपने-आप संभाला। बाकी की जाँच सत्यापन टीम ने की।',
   'Share of all complaints that were joined to an earlier report of the same problem nearby.': 'सभी शिकायतों में से वह हिस्सा जो पास में उसी समस्या की पहले की रिपोर्ट से जोड़ा गया।',
   'Share of notifications in the last 30 days that could not be delivered. Above 5% means e-mail delivery needs checking.': 'पिछले 30 दिनों में जो सूचनाएँ नहीं पहुँच सकीं उनका हिस्सा। 5% से ऊपर हो तो ई-मेल डिलीवरी जाँचनी चाहिए।',
+  'My work for today': 'आज का मेरा काम',
+  'What is overdue?': 'कौन-सी शिकायतें समय सीमा पार हैं?',
+  'Waiting for an officer': 'अधिकारी की प्रतीक्षा में',
+  'Officer workload': 'अधिकारियों का कार्यभार',
+  'This week\'s numbers': 'इस हफ़्ते के आंकड़े',
+  'Ask about your work': 'अपने काम के बारे में पूछें',
+  'Namaste! I am JanNet Sahayak. Ask me about your work for today, what is overdue, or the history of a complaint, for example: JN-2026-000123 history.': 'नमस्ते! मैं जननेट सहायक हूँ। मुझसे आज के अपने काम, समय सीमा पार शिकायतों या किसी शिकायत के इतिहास के बारे में पूछें, जैसे: JN-2026-000123 इतिहास।',
 };

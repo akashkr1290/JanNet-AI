@@ -55,6 +55,8 @@ class AssistantTestWorld {
     final HelpArticleRepository helpArticleRepository = mock(HelpArticleRepository.class);
     final AiServiceClient aiServiceClient = mock(AiServiceClient.class);
     final AssistantConversationStore store = mock(AssistantConversationStore.class);
+    /** Staff work answers have their own tests (StaffAssistantTest). */
+    final StaffAssistant staffAssistant = mock(StaffAssistant.class);
 
     final ComplaintResponse inProgress = detail(101L, "JN-2026-000101", ComplaintCategory.POTHOLE,
             ComplaintStatus.IN_PROGRESS, "Public Works Gaya", false, null, null);
@@ -96,7 +98,7 @@ class AssistantTestWorld {
 
     AssistantService service(boolean llmEnabled, int messagesPerMinute) {
         return new AssistantService(complaintService, complaintRepository, helpArticleRepository, aiServiceClient, store,
-                new AssistantRateLimiter(messagesPerMinute), llmEnabled);
+                new AssistantRateLimiter(messagesPerMinute), staffAssistant, llmEnabled);
     }
 
     static AssistantReply ask(AssistantService service, User user, String text, String language) {

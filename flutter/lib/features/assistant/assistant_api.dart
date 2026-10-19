@@ -16,6 +16,9 @@ class AssistantAction {
   static const openMyComplaints = 'OPEN_MY_COMPLAINTS';
   static const startReport = 'START_REPORT';
 
+  /// Sahayak v2: open the list behind a tile of the user's own dashboard ([value] = the tile).
+  static const openTile = 'OPEN_TILE';
+
   final String type;
   final String label;
   final String? value;

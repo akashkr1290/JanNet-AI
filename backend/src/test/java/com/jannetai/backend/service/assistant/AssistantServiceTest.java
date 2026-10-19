@@ -258,7 +258,10 @@ class AssistantServiceTest {
         assertThat(citizen.suggestedActions()).hasSize(4).allSatisfy(a -> assertThat(a.type()).isEqualTo(AssistantAction.ASK))
                 .extracting(AssistantAction::label).contains(AssistantTexts.get(AssistantTexts.CHIP_WHERE, "TA"));
         AssistantReply officer = ask(service, w.officer, "hello", "EN");
-        assertThat(officer.suggestedActions()).hasSize(2);
+        assertThat(officer.reply()).isEqualTo(AssistantTexts.get(AssistantTexts.GREETING_STAFF, "EN"));
+        assertThat(officer.suggestedActions()).extracting(AssistantAction::label).containsExactly(
+                AssistantTexts.get(AssistantTexts.CHIP_TODAY, "EN"), AssistantTexts.get(AssistantTexts.CHIP_OVERDUE, "EN"),
+                AssistantTexts.get(AssistantTexts.CHIP_STATS, "EN"));
     }
 
     @Test

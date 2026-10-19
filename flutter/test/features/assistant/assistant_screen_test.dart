@@ -169,6 +169,73 @@ void main() {
     expect(find.byType(AssistantScreen), findsNothing);
   });
 
+  testWidgets('staff see their own starter questions and the overdue answer', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final sent = <String>[];
+    Future<AssistantReply> sender(String text, {String? sessionId, required String language}) async {
+      sent.add(text);
+      return const AssistantReply(
+        sessionId: 's',
+        reply: '1 of your complaints are past their deadline (SLA). 0 more will reach it soon. Most late first:\n'
+            '• JN-2026-000201 (pothole): 2 days late',
+        source: 'RULE',
+        intent: 'STAFF_OVERDUE',
+        cards: [
+          AssistantCard(
+            type: AssistantCard.complaint,
+            complaintId: 201,
+            referenceNumber: 'JN-2026-000201',
+            category: 'POTHOLE',
+            status: ComplaintStatus.assigned,
+          ),
+        ],
+        actions: [
+          AssistantAction(type: AssistantAction.openTile, label: 'Open the list', value: 'OVERDUE'),
+          AssistantAction(type: AssistantAction.ask, label: 'My work for today', value: 'My work for today'),
+        ],
+      );
+    }
+
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: ElevatedButton(
+              onPressed: () => AssistantScreen.open(context, sender: sender, audience: AssistantAudience.departmentHead),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ask about your work'), findsOneWidget);
+    for (final q in AssistantScreen.departmentHeadStarterQuestions) {
+      expect(find.text(q), findsOneWidget);
+    }
+    expect(find.text('Where is my complaint?'), findsNothing); // citizen questions are not offered to staff
+
+    await tester.tap(find.text('What is overdue?'));
+    await tester.pumpAndSettle();
+
+    expect(sent, ['What is overdue?']);
+    expect(find.text('JN-2026-000201'), findsOneWidget);
+    expect(find.text('Open the list'), findsOneWidget);
+  });
+
+  test('every role has starter questions and the officer is not offered the head\'s questions', () {
+    expect(const AssistantScreen().starters, AssistantScreen.starterQuestions);
+    expect(const AssistantScreen(audience: AssistantAudience.officer).starters,
+        ['My work for today', 'What is overdue?', "This week's numbers"]);
+    expect(const AssistantScreen(audience: AssistantAudience.officer).isStaff, isTrue);
+    expect(const AssistantScreen(audience: AssistantAudience.admin).starters, contains('Officer workload'));
+    expect(const AssistantScreen().isStaff, isFalse);
+  });
+
   test('ComplaintPrefill hands the draft over once', () {
     ComplaintPrefill.description.value = 'Garbage near the market.';
     expect(ComplaintPrefill.take(), 'Garbage near the market.');

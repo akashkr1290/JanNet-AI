@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/jan_liquid.dart';
 import '../../../core/widgets/jan_shell.dart';
+import '../../assistant/assistant_screen.dart';
 import '../../../core/widgets/jan_states.dart';
 import 'appeals_review_screen.dart';
 import 'location_check_screen.dart';
@@ -65,6 +67,14 @@ class _DepartmentHeadHomeScreenState extends State<DepartmentHeadHomeScreen> {
     );
   }
 
+  /// JanNet Sahayak v2: the chat window for the department's work. "Open
+  /// queue" in the chat comes back here and shows the department queue.
+  Future<void> _openAssistant() async {
+    final exit = await AssistantScreen.open(context, audience: AssistantAudience.departmentHead);
+    if (!mounted || exit != AssistantExit.myComplaints) return;
+    setState(() => _tab = 0);
+  }
+
   // UI redesign: shared adaptive JanShell. Queue / Performance / Dashboard
   // are unchanged; "Pending Appeals" (previously an app-bar action pushing
   // the same AppealsReviewScreen) is now a fourth destination so it stays
@@ -77,6 +87,12 @@ class _DepartmentHeadHomeScreenState extends State<DepartmentHeadHomeScreen> {
       currentIndex: _tab,
       onDestinationSelected: (i) => setState(() => _tab = i),
       onLogout: _logout,
+      floatingActionButton: JanLiquidButton(
+        icon: Icons.support_agent_rounded,
+        label: 'Ask Sahayak',
+        tooltip: 'Ask JanNet Sahayak',
+        onPressed: _openAssistant,
+      ),
       actions: [
         // Audit GAP-039: daily / weekly / custom-range reports.
         JanShellAction(

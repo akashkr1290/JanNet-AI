@@ -20,12 +20,20 @@ import java.util.regex.Pattern;
  * (Hindi/Tamil/... words take endings); any other keyword must match whole
  * words. A tapped suggestion chip (AssistantTexts CHIP_*) is recognised
  * exactly in every language.
+ *
+ * <p>Sahayak v2: for staff accounts (officer, department head, admin) the
+ * router also recognises work questions - overdue, today's work, complaints
+ * waiting for an officer, workload and this week's numbers. A citizen's text
+ * never takes these paths ({@link #route(String)}), so the citizen answers are
+ * exactly those of v1. "History" with a complaint number works for everyone.
  */
 public final class IntentRouter {
 
     public enum Intent {
         GREETING, THANKS, EMERGENCY, COMPLAINT_STATUS, MY_COMPLAINTS, REJECTION_REASON,
-        REPORT_DRAFT, REPORT_START, HELP_ARTICLE, OPEN_QUESTION
+        REPORT_DRAFT, REPORT_START, HELP_ARTICLE, OPEN_QUESTION,
+        // Sahayak v2
+        COMPLAINT_HISTORY, STAFF_TODAY, STAFF_OVERDUE, STAFF_UNASSIGNED, STAFF_WORKLOAD, STAFF_STATS
     }
 
     /**
@@ -82,6 +90,41 @@ public final class IntentRouter {
             "অভিযোগ করতে চাই", "নতুন অভিযোগ", "புகார் செய்ய வேண்டும்", "புதிய புகார்", "ఫిర్యాదు చేయాలి",
             "కొత్త ఫిర్యాదు", "ದೂರು ನೀಡಬೇಕು", "ಹೊಸ ದೂರು");
 
+    // ---- Sahayak v2 ----
+    private static final List<String> HISTORY = kw(
+            "history", "timeline", "what happened", "itihas", "kya kya hua", "इतिहास", "क्या क्या हुआ", "टाइमलाइन",
+            "घटनाक्रम", "ইতিহাস", "வரலாறு", "చరిత్ర", "ಇತಿಹಾಸ");
+    private static final List<String> OVERDUE = kw(
+            "overdue", "over due", "late", "delayed", "delay*", "sla", "deadline*", "breach*", "past due", "at risk",
+            "der ho*", "der se", "deri", "time limit", "samay seema", "ओवरड्यू", "देरी", "देर", "विलंब*", "समय सीमा",
+            "समयसीमा", "मुदत संप*", "मुदत", "उशीर*", "দেরি", "বিলম্ব*", "সময়সীমা", "தாமத*", "காலக்கெடு*", "ఆలస్య*",
+            "గడువు*", "ವಿಳಂಬ*", "ಗಡುವು*");
+    private static final List<String> UNASSIGNED = kw(
+            "unassigned", "not assigned", "no officer", "without officer", "without an officer", "waiting for officer",
+            "waiting for an officer", "to assign", "need assignment", "assign nahi", "assign nhi", "assign karna",
+            "assign karni", "officer nahi", "officer nhi", "bina officer", "असाइन नहीं", "अधिकारी नहीं", "बिना अधिकारी",
+            "अधिकारी की प्रतीक्षा", "सौंपी नहीं", "नियुक्त नहीं", "अधिकाऱ्याच्या प्रतीक्षेत", "नेमलेल्या नाहीत",
+            "অনিযুক্ত", "আধিকারিকের অপেক্ষায়", "ஒதுக்கப்படாத*", "அதிகாரிக்காக*", "కేటాయించని", "అధికారి కోసం",
+            "ನಿಯೋಜಿಸದ*", "ಅಧಿಕಾರಿಗಾಗಿ");
+    private static final List<String> WORKLOAD = kw(
+            "workload", "work load", "most work", "most open", "busiest", "officer load", "which officer", "per officer",
+            "each officer", "officers", "officer wise", "department wise", "per department", "sabse zyada",
+            "sabse jyada", "kis officer", "kaam ka bojh", "कार्यभार", "सबसे ज़्यादा", "सबसे ज्यादा", "अधिकारियों",
+            "हर अधिकारी", "कामाचा भार", "अधिकाऱ्यांचा", "কাজের চাপ", "আধিকারিকদের", "பணிச்சுமை*", "அதிகாரிகளின்",
+            "పని భారం", "అధికారుల", "ಕೆಲಸದ ಹೊರೆ", "ಅಧಿಕಾರಿಗಳ");
+    private static final List<String> STATS = kw(
+            "this week", "weekly", "last week", "stats", "statistics", "summary", "numbers", "is hafte", "iss hafte",
+            "is week", "hafte ka", "hafte ke", "इस हफ़्ते", "इस हफ्ते", "इस सप्ताह", "साप्ताहिक", "आंकड़े", "आँकड़े",
+            "सारांश", "या आठवड्यात", "या आठवड्याची", "आकडेवारी", "এই সপ্তাহে", "এই সপ্তাহের", "সাপ্তাহিক", "পরিসংখ্যান",
+            "হিসাব", "இந்த வாரம்", "இந்த வாரத்தின்", "வாராந்திர", "புள்ளிவிவர*", "ఈ వారం", "వారపు", "గణాంకాలు",
+            "ಈ ವಾರ", "ಈ ವಾರದ", "ಅಂಕಿಅಂಶ*");
+    private static final List<String> COUNT = kw(
+            "how many", "kitni", "kitne", "कितनी", "कितने", "किती", "কতগুলো", "எத்தனை", "ఎన్ని", "ಎಷ್ಟು");
+    private static final List<String> TODAY = kw(
+            "today", "my work", "my tasks", "task*", "todo", "to do", "my queue", "what should i do", "aaj", "aaj ka",
+            "mera kaam", "kaam", "आज", "मेरा काम", "काम", "आजचे", "माझे काम", "আজ", "আজকের", "কাজ", "இன்று",
+            "இன்றைய", "வேலை*", "ఈరోజు", "ఈ రోజు", "పని", "ಇಂದು", "ಇಂದಿನ", "ಕೆಲಸ*");
+
     private static final Map<ComplaintCategory, List<String>> CATEGORY = new LinkedHashMap<>();
 
     static {
@@ -117,7 +160,17 @@ public final class IntentRouter {
     private IntentRouter() {
     }
 
+    /** A citizen's (or any non-staff) question - the v1 rules. */
     public static Routed route(String text) {
+        return route(text, false);
+    }
+
+    /**
+     * @param staff true for officers, department heads and admins: their work
+     *              questions (overdue, today, waiting for an officer, workload,
+     *              this week's numbers) are recognised before the citizen rules.
+     */
+    public static Routed route(String text, boolean staff) {
         String raw = text == null ? "" : text.trim();
         String norm = normalise(raw);
         if (norm.isBlank()) {
@@ -127,7 +180,7 @@ public final class IntentRouter {
         Matcher ref = REFERENCE.matcher(raw);
         if (ref.find()) {
             String reference = "JN-%s-%06d".formatted(ref.group(1), Integer.parseInt(ref.group(2)));
-            return new Routed(Intent.COMPLAINT_STATUS, reference, null, null);
+            return new Routed(any(norm, HISTORY) ? Intent.COMPLAINT_HISTORY : Intent.COMPLAINT_STATUS, reference, null, null);
         }
 
         Routed chip = chip(norm);
@@ -137,6 +190,12 @@ public final class IntentRouter {
         int words = norm.trim().split(" ").length;
         if (any(norm, EMERGENCY)) {
             return Routed.of(Intent.EMERGENCY);
+        }
+        if (staff) {
+            Routed work = staffWork(norm);
+            if (work != null) {
+                return work;
+            }
         }
         ComplaintCategory category = category(norm);
         if (category == null && words <= 4 && any(norm, GREETING)) {
@@ -176,6 +235,26 @@ public final class IntentRouter {
         return Routed.of(Intent.OPEN_QUESTION);
     }
 
+    /** A staff work question, or null. Order matters: "how many overdue" is about overdue work. */
+    private static Routed staffWork(String norm) {
+        if (any(norm, OVERDUE)) {
+            return Routed.of(Intent.STAFF_OVERDUE);
+        }
+        if (any(norm, UNASSIGNED)) {
+            return Routed.of(Intent.STAFF_UNASSIGNED);
+        }
+        if (any(norm, WORKLOAD)) {
+            return Routed.of(Intent.STAFF_WORKLOAD);
+        }
+        if (any(norm, STATS) || (any(norm, COUNT) && any(norm, COMPLAINT_WORD))) {
+            return Routed.of(Intent.STAFF_STATS);
+        }
+        if (any(norm, TODAY)) {
+            return Routed.of(Intent.STAFF_TODAY);
+        }
+        return null;
+    }
+
     /** The problem type named in the text, or null. */
     public static ComplaintCategory category(String normalised) {
         for (Map.Entry<ComplaintCategory, List<String>> e : CATEGORY.entrySet()) {
@@ -201,6 +280,22 @@ public final class IntentRouter {
         }
         if (matchesChip(norm, AssistantTexts.CHIP_APPEAL)) {
             return new Routed(Intent.HELP_ARTICLE, null, null, "appeal");
+        }
+        // Sahayak v2 staff chips (shown to staff only; AssistantService answers a citizen who types one)
+        if (matchesChip(norm, AssistantTexts.CHIP_TODAY)) {
+            return Routed.of(Intent.STAFF_TODAY);
+        }
+        if (matchesChip(norm, AssistantTexts.CHIP_OVERDUE)) {
+            return Routed.of(Intent.STAFF_OVERDUE);
+        }
+        if (matchesChip(norm, AssistantTexts.CHIP_UNASSIGNED)) {
+            return Routed.of(Intent.STAFF_UNASSIGNED);
+        }
+        if (matchesChip(norm, AssistantTexts.CHIP_WORKLOAD)) {
+            return Routed.of(Intent.STAFF_WORKLOAD);
+        }
+        if (matchesChip(norm, AssistantTexts.CHIP_STATS)) {
+            return Routed.of(Intent.STAFF_STATS);
         }
         return null;
     }

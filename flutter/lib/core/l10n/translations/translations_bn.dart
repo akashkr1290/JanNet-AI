@@ -1025,4 +1025,11 @@ const Map<String, String> kTranslationsBn = {
   'Of all complaints accepted or joined to an earlier report so far, the share the AI handled on its own. The rest were checked by the Verification Team.': 'এ পর্যন্ত গৃহীত বা আগের রিপোর্টের সঙ্গে যুক্ত সব অভিযোগের মধ্যে যে অংশ AI নিজেই সামলেছে। বাকিগুলো যাচাই দল দেখেছে।',
   'Share of all complaints that were joined to an earlier report of the same problem nearby.': 'সব অভিযোগের মধ্যে যেগুলো কাছাকাছি একই সমস্যার আগের রিপোর্টের সঙ্গে যুক্ত করা হয়েছে তার অংশ।',
   'Share of notifications in the last 30 days that could not be delivered. Above 5% means e-mail delivery needs checking.': 'গত 30 দিনে যে বিজ্ঞপ্তিগুলো পৌঁছানো যায়নি তার অংশ। 5%-এর বেশি হলে ই-মেল পাঠানো পরীক্ষা করুন।',
+  'My work for today': 'আজকের আমার কাজ',
+  'What is overdue?': 'কোন অভিযোগের সময়সীমা পেরিয়েছে?',
+  'Waiting for an officer': 'আধিকারিকের অপেক্ষায়',
+  'Officer workload': 'আধিকারিকদের কাজের চাপ',
+  'This week\'s numbers': 'এই সপ্তাহের হিসাব',
+  'Ask about your work': 'আপনার কাজ নিয়ে জিজ্ঞাসা করুন',
+  'Namaste! I am JanNet Sahayak. Ask me about your work for today, what is overdue, or the history of a complaint, for example: JN-2026-000123 history.': 'নমস্কার! আমি জননেট সহায়ক। আজকের আপনার কাজ, সময়সীমা পেরোনো অভিযোগ বা কোনো অভিযোগের ইতিহাস জিজ্ঞাসা করুন, যেমন: JN-2026-000123 ইতিহাস।',
 };
