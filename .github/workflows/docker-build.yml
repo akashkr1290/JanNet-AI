@@ -111,14 +111,14 @@ jobs:
 
       - name: Upload backend Trivy results to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-backend.sarif
           category: trivy-backend-image
 
       - name: Upload ai-service Trivy results to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-ai-service.sarif
           category: trivy-ai-service-image
